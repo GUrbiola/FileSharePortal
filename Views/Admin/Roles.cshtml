@@ -1,0 +1,72 @@
+@using System.Web.Optimization;
+
+@model List<FileSharePortal.Models.Role>
+@{
+    ViewBag.Title = "Role Management";
+}
+
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h1><i class="bi bi-diagram-3"></i> Role Management</h1>
+        <p class="text-muted">Manage user roles and permissions</p>
+    </div>
+    <div>
+        <a href="@Url.Action("CreateRole")" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Create Role
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    @foreach (var role in Model)
+    {
+        <div class="col-md-6 col-lg-4">
+            <div class="card file-card">
+                <div class="card-body">
+                    <h5 class="card-title">@role.RoleName</h5>
+                    @if (!string.IsNullOrEmpty(role.Description))
+                    {
+                        <p class="text-muted">@role.Description</p>
+                    }
+                    <p class="text-muted small">
+                        <i class="bi bi-calendar"></i> Created: @role.CreatedDate.ToString("MMM dd, yyyy")
+                    </p>
+                    <div class="d-grid gap-2">
+                        <a href="@Url.Action("ManageRole", new { id = role.RoleId })" class="btn btn-outline-primary">
+                            <i class="bi bi-gear"></i> Manage Members
+                        </a>
+                        <button type="button" class="btn btn-outline-danger" onclick="deleteRole(@role.RoleId, '@role.RoleName')">
+                            <i class="bi bi-trash"></i> Delete Role
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+@section scripts {
+    <script>
+        $(document).ready(function ()
+        {
+            $('.sidebar-link').removeClass('active');
+            $('#RolesLink').addClass('active');
+        });
+
+        function deleteRole(roleId, roleName) {
+            if (!confirm('Are you sure you want to delete the role "' + roleName + '"?\n\nThis will:\n- Remove all users from this role\n- Remove all distribution lists from this role\n- Remove this role from all file shares\n\nThis action cannot be undone.')) {
+                return;
+            }
+
+            $.post('@Url.Action("DeleteRole")', { roleId: roleId }, function (data) {
+                if (data.success) {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            }).fail(function (xhr, status, error) {
+                alert('Error deleting role: ' + error);
+            });
+        }
+    </script>
+}

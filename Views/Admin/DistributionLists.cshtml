@@ -1,0 +1,56 @@
+@using System.Web.Optimization;
+
+@model List<FileSharePortal.Models.DistributionList>
+@{
+    ViewBag.Title = "Distribution Lists";
+}
+
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h1><i class="bi bi-list-ul"></i> Distribution Lists</h1>
+        <p class="text-muted">Manage Active Directory distribution lists</p>
+    </div>
+    <div>
+        <a href="@Url.Action("CreateDistributionList")" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Add Distribution List
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    @foreach (var dl in Model)
+    {
+        <div class="col-md-6 col-lg-4">
+            <div class="card file-card">
+                <div class="card-body">
+                    <h5 class="card-title">@dl.Name</h5>
+                    @if (!string.IsNullOrEmpty(dl.Description))
+                    {
+                        <p class="text-muted">@dl.Description</p>
+                    }
+                    <p class="text-muted small">
+                        <i class="bi bi-diagram-2"></i> @dl.ADDistinguishedName
+                    </p>
+                    <p class="text-muted small">
+                        <i class="bi bi-calendar"></i> Created: @dl.CreatedDate.ToString("MMM dd, yyyy")
+                    </p>
+                    @if (dl.LastSyncDate.HasValue)
+                    {
+                        <p class="text-muted small">
+                            <i class="bi bi-arrow-repeat"></i> Last Sync: @dl.LastSyncDate.Value.ToString("MMM dd, yyyy")
+                        </p>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+@section scripts {
+    <script>
+        $(document).ready(function ()
+        {
+            $('.sidebar-link').removeClass('active');
+            $('#DistListLink').addClass('active');
+        });
+    </script>
+}

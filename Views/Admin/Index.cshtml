@@ -1,0 +1,100 @@
+@using System.Web.Optimization;
+
+@{
+    ViewBag.Title = "Admin Dashboard";
+}
+
+<div class="page-header">
+    <h1><i class="bi bi-speedometer2"></i> Admin Dashboard</h1>
+    <p class="text-muted">Manage and monitor the File Share Portal</p>
+</div>
+
+<div class="row">
+    <div class="col-md-3">
+        <div class="stat-card">
+            <h3>@ViewBag.TotalUsers</h3>
+            <p><i class="bi bi-people"></i> Total Users</p>
+            <a href="@Url.Action("Users")" class="btn btn-light btn-sm mt-2">Manage Users</a>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card" style="background: linear-gradient(135deg, #198754 0%, #157347 100%);">
+            <h3>@ViewBag.TotalFiles</h3>
+            <p><i class="bi bi-folder"></i> Total Files</p>
+            <a href="@Url.Action("Files")" class="btn btn-light btn-sm mt-2">View Files</a>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card" style="background: linear-gradient(135deg, #0dcaf0 0%, #0aa2c0 100%);">
+            <h3>@ViewBag.TotalRoles</h3>
+            <p><i class="bi bi-diagram-3"></i> Total Roles</p>
+            <a href="@Url.Action("Roles")" class="btn btn-light btn-sm mt-2">Manage Roles</a>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card" style="background: linear-gradient(135deg, #dc3545 0%, #bb2d3b 100%);">
+            <h3>@ViewBag.PendingReports</h3>
+            <p><i class="bi bi-flag"></i> Pending Reports</p>
+            <a href="@Url.Action("Reports")" class="btn btn-light btn-sm mt-2">View Reports</a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-list-check"></i> Quick Actions
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    <a href="@Url.Action("CreateUser")" class="list-group-item list-group-item-action">
+                        <i class="bi bi-person-plus text-primary"></i> Create New User
+                    </a>
+                    <a href="@Url.Action("CreateRole")" class="list-group-item list-group-item-action">
+                        <i class="bi bi-diagram-3 text-success"></i> Create New Role
+                    </a>
+                    <a href="@Url.Action("CreateDistributionList")" class="list-group-item list-group-item-action">
+                        <i class="bi bi-list-ul text-info"></i> Create Distribution List
+                    </a>
+                    <a href="@Url.Action("Reports")" class="list-group-item list-group-item-action">
+                        <i class="bi bi-flag text-danger"></i> Review File Reports
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-gear"></i> Management
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="@Url.Action("Users")" class="btn btn-outline-primary">
+                        <i class="bi bi-people"></i> User Management
+                    </a>
+                    <a href="@Url.Action("Roles")" class="btn btn-outline-success">
+                        <i class="bi bi-diagram-3"></i> Role Management
+                    </a>
+                    <a href="@Url.Action("DistributionLists")" class="btn btn-outline-info">
+                        <i class="bi bi-list-ul"></i> Distribution Lists
+                    </a>
+                    <a href="@Url.Action("Files")" class="btn btn-outline-warning">
+                        <i class="bi bi-folder"></i> File Management
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@section scripts {
+    <script>
+        $(document).ready(function ()
+        {
+            $('.sidebar-link').removeClass('active');
+            $('#AdminDashBoardLink').addClass('active');
+        });
+    </script>
+}

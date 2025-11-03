@@ -1,0 +1,264 @@
+@using System.Web.Optimization;
+
+@model List<FileSharePortal.Models.SharedFile>
+@{
+    ViewBag.Title = "Shared With Me";
+}
+
+<div class="page-header">
+    <h1><i class="bi bi-share"></i> Files Shared With Me</h1>
+    <p class="text-muted">Files that others have shared with you</p>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        @if (Model != null && Model.Any())
+        {
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <input type="text" id="filterFileName" class="form-control" placeholder="Filter by file name or description...">
+                </div>
+                <div class="col-md-4">
+                    <input type="text" id="filterSharedBy" class="form-control" placeholder="Filter by shared by...">
+                </div>
+                <div class="col-md-4">
+                    <select id="filterDateGroup" class="form-select">
+                        <option value="all">All</option>
+                        <option value="today">Today</option>
+                        <option value="yesterday">Yesterday</option>
+                        <option value="week">Last Week</option>
+                        <option value="15days">Last 15 Days</option>
+                        <option value="30days">Last 30 Days</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mb-2">
+                <small class="text-muted">Showing <span id="resultCount">@Model.Count</span> of @Model.Count files</small>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover" id="sharedFilesTable">
+                    <thead>
+                        <tr>
+                            <th class="sortable" data-sort="filename" style="cursor: pointer;">
+                                File Name <i class="bi bi-chevron-expand sort-icon"></i>
+                            </th>
+                            <th class="sortable" data-sort="sharedby" style="cursor: pointer;">
+                                Shared By <i class="bi bi-chevron-expand sort-icon"></i>
+                            </th>
+                            <th class="sortable" data-sort="size" style="cursor: pointer;">
+                                Size <i class="bi bi-chevron-expand sort-icon"></i>
+                            </th>
+                            <th class="sortable" data-sort="date" style="cursor: pointer;">
+                                Uploaded Date <i class="bi bi-chevron-expand sort-icon"></i>
+                            </th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var file in Model)
+                        {
+                            <tr data-filename="@file.FileName.ToLower()"
+                                data-description="@(String.IsNullOrEmpty(file.Description) ? "" : file.Description)"
+                                data-sharedby="@file.UploadedBy.FullName.ToLower()"
+                                data-uploaded="@file.UploadedDate.ToString("yyyy-MM-dd")"
+                                data-size="@file.FileSize"
+                                data-uploaded-timestamp="@((file.UploadedDate - new DateTime(1970, 1, 1)).TotalMilliseconds)">
+                                <td>
+                                    <i class="bi bi-file-earmark text-primary"></i>
+                                    <strong>@file.FileName</strong>
+                                    @if (!string.IsNullOrEmpty(file.Description))
+                                    {
+                                        <br />
+                                        <small class="text-muted">@file.Description</small>
+                                    }
+                                </td>
+                                <td>@file.UploadedBy.FullName</td>
+                                <td>@String.Format("{0:0.00} MB", file.FileSize / 1048576.0)</td>
+                                <td>@file.UploadedDate.ToString("MMM dd, yyyy")</td>
+                                <td class="table-actions">
+                                    <a href="@Url.Action("Details", new { id = file.FileId })" class="btn btn-sm btn-outline-primary" title="Details">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <a href="@Url.Action("Download", new { id = file.FileId })" class="btn btn-sm btn-outline-info" title="Download">
+                                        <i class="bi bi-download"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <i class="bi bi-share" style="font-size: 4rem; color: #ccc;"></i>
+                <h3 class="mt-3">No Shared Files</h3>
+                <p class="text-muted">No one has shared files with you yet</p>
+            </div>
+        }
+    </div>
+</div>
+@section scripts {
+    <script>
+        var currentSort = { column: null, ascending: true };
+
+        $(document).ready(function () {
+            $('.sidebar-link').removeClass('active');
+            $('#SharedWithMeLink').addClass('active');
+
+            // Filter functionality
+            $('#filterFileName, #filterSharedBy, #filterDateGroup').on('input change', function () {
+                filterTable();
+            });
+
+            // Sorting functionality
+            $('.sortable').on('click', function () {
+                var sortColumn = $(this).data('sort');
+                sortTable(sortColumn);
+            });
+        });
+
+        function sortTable(column) {
+            var tbody = $('#sharedFilesTable tbody');
+            var rows = tbody.find('tr').toArray();
+
+            // Toggle sort direction if same column, else default to ascending
+            if (currentSort.column === column) {
+                currentSort.ascending = !currentSort.ascending;
+            } else {
+                currentSort.column = column;
+                currentSort.ascending = true;
+            }
+
+            // Sort rows
+            rows.sort(function (a, b) {
+                var aVal, bVal;
+
+                switch (column) {
+                    case 'filename':
+                        aVal = $(a).data('filename');
+                        bVal = $(b).data('filename');
+                        break;
+                    case 'sharedby':
+                        aVal = $(a).data('sharedby');
+                        bVal = $(b).data('sharedby');
+                        break;
+                    case 'size':
+                        aVal = parseFloat($(a).data('size'));
+                        bVal = parseFloat($(b).data('size'));
+                        break;
+                    case 'date':
+                        aVal = parseFloat($(a).data('uploaded-timestamp'));
+                        bVal = parseFloat($(b).data('uploaded-timestamp'));
+                        break;
+                }
+
+                if (aVal < bVal) return currentSort.ascending ? -1 : 1;
+                if (aVal > bVal) return currentSort.ascending ? 1 : -1;
+                return 0;
+            });
+
+            // Reorder rows in DOM
+            $.each(rows, function (index, row) {
+                tbody.append(row);
+            });
+
+            // Update sort icons
+            $('.sortable .sort-icon').removeClass('bi-chevron-up bi-chevron-down').addClass('bi-chevron-expand');
+            var activeHeader = $('.sortable[data-sort="' + column + '"]');
+            var icon = activeHeader.find('.sort-icon');
+            icon.removeClass('bi-chevron-expand');
+            icon.addClass(currentSort.ascending ? 'bi-chevron-up' : 'bi-chevron-down');
+        }
+
+        function filterTable() {
+            var fileNameFilter = $('#filterFileName').val().toLowerCase();
+            var sharedByFilter = $('#filterSharedBy').val().toLowerCase();
+            var dateGroupFilter = $('#filterDateGroup').val();
+
+            var visibleCount = 0;
+
+            // Calculate date ranges
+            var today = new Date();
+            today.setHours(0, 0, 0, 0);
+            var todayTimestamp = today.getTime();
+
+            var yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            var yesterdayTimestamp = yesterday.getTime();
+
+            var weekAgo = new Date(today);
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            var weekAgoTimestamp = weekAgo.getTime();
+
+            var fifteenDaysAgo = new Date(today);
+            fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
+            var fifteenDaysAgoTimestamp = fifteenDaysAgo.getTime();
+
+            var thirtyDaysAgo = new Date(today);
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            var thirtyDaysAgoTimestamp = thirtyDaysAgo.getTime();
+
+            $('#sharedFilesTable tbody tr').each(function () {
+                var row = $(this);
+                var fileName = row.data('filename');
+                var description = row.data('description');
+                var sharedBy = row.data('sharedby');
+                var uploadedTimestamp = parseFloat(row.data('uploaded-timestamp'));
+
+                var showRow = true;
+
+                // Filter by file name or description
+                if (fileNameFilter && !fileName.includes(fileNameFilter) && !description.includes(fileNameFilter)) {
+                    showRow = false;
+                }
+
+                // Filter by shared by
+                if (sharedByFilter && !sharedBy.includes(sharedByFilter)) {
+                    showRow = false;
+                }
+
+                // Filter by date group
+                if (dateGroupFilter !== 'all') {
+                    switch (dateGroupFilter) {
+                        case 'today':
+                            if (uploadedTimestamp < todayTimestamp) {
+                                showRow = false;
+                            }
+                            break;
+                        case 'yesterday':
+                            if (uploadedTimestamp < yesterdayTimestamp || uploadedTimestamp >= todayTimestamp) {
+                                showRow = false;
+                            }
+                            break;
+                        case 'week':
+                            if (uploadedTimestamp < weekAgoTimestamp) {
+                                showRow = false;
+                            }
+                            break;
+                        case '15days':
+                            if (uploadedTimestamp < fifteenDaysAgoTimestamp) {
+                                showRow = false;
+                            }
+                            break;
+                        case '30days':
+                            if (uploadedTimestamp < thirtyDaysAgoTimestamp) {
+                                showRow = false;
+                            }
+                            break;
+                    }
+                }
+
+                if (showRow) {
+                    row.show();
+                    visibleCount++;
+                } else {
+                    row.hide();
+                }
+            });
+
+            $('#resultCount').text(visibleCount);
+        }
+    </script>
+}

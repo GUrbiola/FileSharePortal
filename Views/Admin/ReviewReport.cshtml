@@ -1,0 +1,135 @@
+@using System.Web.Optimization;
+
+@model FileSharePortal.Models.FileReport
+@{
+    ViewBag.Title = "Review Report";
+}
+
+<div class="page-header">
+    <h1><i class="bi bi-flag"></i> Review File Report</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-info-circle"></i> Report Details
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>File Name:</strong></div>
+                    <div class="col-sm-8">@Model.SharedFile.FileName</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>File Owner:</strong></div>
+                    <div class="col-sm-8">@Model.SharedFile.UploadedBy.FullName</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Reported By:</strong></div>
+                    <div class="col-sm-8">@Model.ReportedBy.FullName (@Model.ReportedBy.Email)</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Reported Date:</strong></div>
+                    <div class="col-sm-8">@Model.ReportedDate.ToString("MMMM dd, yyyy HH:mm:ss")</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Reason:</strong></div>
+                    <div class="col-sm-8"><span class="badge bg-warning">@Model.Reason</span></div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Details:</strong></div>
+                    <div class="col-sm-8">@Model.Details</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Current Status:</strong></div>
+                    <div class="col-sm-8">
+                        @switch (Model.Status)
+                        {
+                            case FileSharePortal.Models.ReportStatus.Pending:
+                                <span class="badge bg-warning">Pending</span>
+                                break;
+                            case FileSharePortal.Models.ReportStatus.UnderReview:
+                                <span class="badge bg-info">Under Review</span>
+                                break;
+                            case FileSharePortal.Models.ReportStatus.Resolved:
+                                <span class="badge bg-success">Resolved</span>
+                                break;
+                            case FileSharePortal.Models.ReportStatus.Dismissed:
+                                <span class="badge bg-secondary">Dismissed</span>
+                                break;
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <i class="bi bi-pencil"></i> Update Report Status
+            </div>
+            <div class="card-body">
+                <form method="post" action="@Url.Action("ReviewReport")">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="reportId" value="@Model.ReportId" />
+
+                    <div class="mb-3">
+                        <label for="status" class="form-label"><strong>Status</strong></label>
+                        <select class="form-select" id="status" name="status" required>
+                            <option value="UnderReview">Under Review</option>
+                            <option value="Resolved">Resolved</option>
+                            <option value="Dismissed">Dismissed</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="adminNotes" class="form-label"><strong>Admin Notes</strong></label>
+                        <textarea class="form-control" id="adminNotes" name="adminNotes" rows="4" required>@Model.AdminNotes</textarea>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Save Review
+                        </button>
+                        <a href="@Url.Action("Reports")" class="btn btn-outline-secondary">
+                            <i class="bi bi-x"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-lightning"></i> Quick Actions
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="@Url.Action("Details", "Files", new { id = Model.FileId })" class="btn btn-outline-primary">
+                        <i class="bi bi-eye"></i> View File Details
+                    </a>
+                    <a href="@Url.Action("Download", "Files", new { id = Model.FileId })" class="btn btn-outline-info">
+                        <i class="bi bi-download"></i> Download File
+                    </a>
+                    <button type="button" class="btn btn-outline-danger" onclick="if(confirm('Delete this file?')) deleteFile(@Model.FileId)">
+                        <i class="bi bi-trash"></i> Delete File
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section scripts {
+    <script>
+        function deleteFile(fileId) {
+            $.post('@Url.Action("DeleteFile", "Admin")', { fileId: fileId }, function (data) {
+                if (data.success) {
+                    alert('File deleted successfully');
+                    window.location.href = '@Url.Action("Reports")';
+                }
+            });
+        }
+    </script>
+}

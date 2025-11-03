@@ -1,0 +1,66 @@
+@using System.Web.Optimization;
+
+@{
+    ViewBag.Title = "Report File";
+    var file = ViewBag.File as FileSharePortal.Models.SharedFile;
+}
+
+<div class="page-header">
+    <h1><i class="bi bi-flag"></i> Report File</h1>
+    <p class="text-muted">Report "@file.FileName" to administrators</p>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <strong>Important:</strong> This report will be sent to all administrators. Please provide accurate information.
+                </div>
+
+                <form method="post" action="@Url.Action("Report")">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="fileId" value="@file.FileId" />
+
+                    <div class="mb-3">
+                        <label class="form-label"><strong>File Information</strong></label>
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <p class="mb-1"><strong>File Name:</strong> @file.FileName</p>
+                                <p class="mb-0"><strong>Uploaded By:</strong> @file.UploadedBy.FullName</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="reason" class="form-label"><strong>Reason for Report</strong></label>
+                        <select class="form-select" id="reason" name="reason" required>
+                            <option value="">Select a reason...</option>
+                            <option value="Inappropriate Content">Inappropriate Content</option>
+                            <option value="Copyright Violation">Copyright Violation</option>
+                            <option value="Malware/Virus">Malware/Virus</option>
+                            <option value="Spam">Spam</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="details" class="form-label"><strong>Details</strong></label>
+                        <textarea class="form-control" id="details" name="details" rows="5" required
+                                  placeholder="Please provide detailed information about why you're reporting this file..."></textarea>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-flag"></i> Submit Report
+                        </button>
+                        <a href="@Url.Action("Details", new { id = file.FileId })" class="btn btn-outline-secondary">
+                            <i class="bi bi-x"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

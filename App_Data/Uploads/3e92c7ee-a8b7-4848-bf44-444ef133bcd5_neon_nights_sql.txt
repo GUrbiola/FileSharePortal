@@ -1,0 +1,70 @@
+<?xml version = "1.0"?>
+<SyntaxDefinition name = "SQL" extensions = ".sql">
+	<Environment>
+		<Default color="#E91E63" bgcolor="#0A0A0A"/>
+		<VRuler color = "#FF1744"/>
+		<Selection bgcolor="#1A1A2E"/>
+		<LineNumbers color="#9C27B0" bgcolor="#0A0A0A"/>
+		<InvalidLines color = "#FF5722"/>
+		<EOLMarkers color = "#0A0A0A"/>
+		<SpaceMarkers color = "#16213E"/>
+		<TabMarkers color = "#16213E"/>
+		<CaretMarker color = "#E91E63"/>
+		<FoldLine color = "#FF1744" bgcolor="#0A0A0A"/>
+		<FoldMarker color = "#FF1744" bgcolor="#0A0A0A"/>
+	</Environment>
+
+	<Properties>
+		<Property name="LineComment" value="--"/>
+	</Properties>
+	<Digits name="Digits" bold="true" italic="false" color="#00E676"/>
+	<RuleSets>
+		<RuleSet ignorecase="true">
+			<Delimiters>=!&gt;&lt;+-/*%&amp;|^~.}{,;][?()</Delimiters>
+			<Span name="LineComment" rule="SpecialComments" bold="false" italic="true" color="#424242" stopateol="true" >
+				<Begin>--</Begin>
+			</Span>
+
+			<Span name="BlockComment" bold="false" italic="true" color="#424242" stopateol ="false" >
+				<Begin>/*</Begin>
+				<End>*/</End>
+			</Span>
+
+			<Span name="String" bold="true" italic="false" color="#FF6EC7" stopateol ="false" >
+				<Begin>&apos;</Begin>
+				<End>&apos;</End>
+			</Span>
+
+			<KeyWords name="JoinKeywords" bold="true" italic="false" color="#FF1744" />
+			<KeyWords name="AliasKeywords" bold="true" italic="false" color="#FFC107" />
+			<KeyWords name="ComparisonKeyWords" bold="true" italic="false" color="#2196F3" />
+			<KeyWords name="DestructiveKeyWords" bold="true" italic="false" color="#FF5722" bgcolor="#330A0A" />
+			<KeyWords name="RestrictiveKeywords" bold="true" italic="false" color="#4CAF50" />
+			<KeyWords name="DeclarativeKeywords" bold="true" italic="false" color="#4CAF50" />
+			<KeyWords name="TransactionKeyWords" bold="true" italic="false" color="#FF9800" />
+			<KeyWords name="DebugKeyWords" bold="true" italic="false" color="#F44336" />
+			<KeyWords name="CursorKeyWords" bold="true" italic="false" color="#00BCD4" />
+			<KeyWords name="SQLKeyWords" bold="true" italic="false" color="#9C27B0" />
+			<KeyWords name="SQLActionKeyWords" bold="true" italic="false" color="#E91E63" />
+			<KeyWords name="SQLTypes" bold="true" italic="false" color="#03DAC6" />
+			<KeyWords name="SqlObjects" bold="true" italic="true" color="#BB86FC" />
+			<KeyWords name="FlowControlKeyWords" bold="true" italic="true" color="#CF6679" />
+			<KeyWords name="SpecialKeywords" bold="true" italic="false" color="#4CAF50" />
+			<KeyWords name="SpecialConstructionKeywords" bold="true" italic="false" color="#FFC107" />
+			<KeyWords name="TSqlFlags" bold="true" italic="false" color="#FF9800" />
+			<KeyWords name="Punctuation" bold="false" italic="false" color="#757575" />
+			<KeyWords name="ComparisonOperators" bold="false" italic="false" color="#757575" />
+			<KeyWords name="TransactSQLFunctions" bold="true" italic="false" color="#FFC107" />
+			<KeyWords name="GroupByFunctions" bold="true" italic="false" color="#FF6EC7" />
+			<KeyWords name="SystemTables" bold="true" italic="false" color="#03DAC6" />
+
+		</RuleSet>
+
+		<RuleSet name="SpecialComments" ignorecase="true">
+			<Delimiters>=!&gt;&lt;+-/*%&amp;|^~.}{,;][?()</Delimiters>
+			<KeyWords name="QueryName" bold="true" italic="false" color="#5D4037" />
+			<KeyWords name="UserFlags" bold="true" italic="false" color="#C62828" bgcolor="#FFEBEE" />
+		</RuleSet>
+
+	</RuleSets>
+</SyntaxDefinition>

@@ -1,0 +1,179 @@
+@using System.Web.Optimization;
+
+@model FileSharePortal.ViewModels.ThemeViewModel
+@{
+    ViewBag.Title = "Create Theme";
+}
+
+<div class="page-header">
+    <h1><i class="bi bi-plus-circle"></i> Create New Theme</h1>
+    <p class="text-muted">Create a custom color theme for your portal</p>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="post" action="@Url.Action("Create")">
+                    @Html.AntiForgeryToken()
+
+                    <div class="mb-3">
+                        @Html.LabelFor(m => m.ThemeName, new { @class = "form-label" })
+                        @Html.TextBoxFor(m => m.ThemeName, new { @class = "form-control", required = "required" })
+                        @Html.ValidationMessageFor(m => m.ThemeName, "", new { @class = "text-danger" })
+                    </div>
+
+                    <div class="mb-3">
+                        @Html.LabelFor(m => m.Description, new { @class = "form-label" })
+                        @Html.TextAreaFor(m => m.Description, new { @class = "form-control", rows = 2 })
+                    </div>
+
+                    <h5 class="mt-4 mb-3">Primary Colors</h5>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            @Html.LabelFor(m => m.PrimaryColor, new { @class = "form-label" })
+                            <div class="input-group">
+                                @Html.TextBoxFor(m => m.PrimaryColor, new { @class = "form-control", type = "color", required = "required" })
+                                @Html.TextBoxFor(m => m.PrimaryColor, new { @class = "form-control", placeholder = "#0d6efd" })
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            @Html.LabelFor(m => m.PrimaryColorHover, new { @class = "form-label" })
+                            <div class="input-group">
+                                @Html.TextBoxFor(m => m.PrimaryColorHover, new { @class = "form-control", type = "color" })
+                                @Html.TextBoxFor(m => m.PrimaryColorHover, new { @class = "form-control", placeholder = "#0b5ed7" })
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            @Html.LabelFor(m => m.SecondaryColor, new { @class = "form-label" })
+                            <div class="input-group">
+                                @Html.TextBoxFor(m => m.SecondaryColor, new { @class = "form-control", type = "color" })
+                                @Html.TextBoxFor(m => m.SecondaryColor, new { @class = "form-control", placeholder = "#6c757d" })
+                            </div>
+                        </div>
+                    </div>
+
+                    <h5 class="mt-4 mb-3">Status Colors</h5>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            @Html.LabelFor(m => m.SuccessColor, new { @class = "form-label" })
+                            <div class="input-group">
+                                @Html.TextBoxFor(m => m.SuccessColor, new { @class = "form-control", type = "color" })
+                                @Html.TextBoxFor(m => m.SuccessColor, new { @class = "form-control", placeholder = "#198754" })
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            @Html.LabelFor(m => m.DangerColor, new { @class = "form-label" })
+                            <div class="input-group">
+                                @Html.TextBoxFor(m => m.DangerColor, new { @class = "form-control", type = "color" })
+                                @Html.TextBoxFor(m => m.DangerColor, new { @class = "form-control", placeholder = "#dc3545" })
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            @Html.LabelFor(m => m.WarningColor, new { @class = "form-label" })
+                            <div class="input-group">
+                                @Html.TextBoxFor(m => m.WarningColor, new { @class = "form-control", type = "color" })
+                                @Html.TextBoxFor(m => m.WarningColor, new { @class = "form-control", placeholder = "#ffc107" })
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            @Html.LabelFor(m => m.InfoColor, new { @class = "form-label" })
+                            <div class="input-group">
+                                @Html.TextBoxFor(m => m.InfoColor, new { @class = "form-control", type = "color" })
+                                @Html.TextBoxFor(m => m.InfoColor, new { @class = "form-control", placeholder = "#0dcaf0" })
+                            </div>
+                        </div>
+                    </div>
+
+                    <h5 class="mt-4 mb-3">Sidebar Colors</h5>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            @Html.LabelFor(m => m.SidebarBackground, new { @class = "form-label" })
+                            <div class="input-group">
+                                @Html.TextBoxFor(m => m.SidebarBackground, new { @class = "form-control", type = "color" })
+                                @Html.TextBoxFor(m => m.SidebarBackground, new { @class = "form-control", placeholder = "#ffffff" })
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            @Html.LabelFor(m => m.SidebarTextColor, new { @class = "form-label" })
+                            <div class="input-group">
+                                @Html.TextBoxFor(m => m.SidebarTextColor, new { @class = "form-control", type = "color" })
+                                @Html.TextBoxFor(m => m.SidebarTextColor, new { @class = "form-control", placeholder = "#495057" })
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            @Html.LabelFor(m => m.SidebarHoverBackground, new { @class = "form-label" })
+                            <div class="input-group">
+                                @Html.TextBoxFor(m => m.SidebarHoverBackground, new { @class = "form-control", type = "color" })
+                                @Html.TextBoxFor(m => m.SidebarHoverBackground, new { @class = "form-control", placeholder = "#f8f9fa" })
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            @Html.LabelFor(m => m.SidebarActiveBackground, new { @class = "form-label" })
+                            <div class="input-group">
+                                @Html.TextBoxFor(m => m.SidebarActiveBackground, new { @class = "form-control", type = "color" })
+                                @Html.TextBoxFor(m => m.SidebarActiveBackground, new { @class = "form-control", placeholder = "#e7f3ff" })
+                            </div>
+                        </div>
+                    </div>
+
+                    <h5 class="mt-4 mb-3">Background Colors</h5>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            @Html.LabelFor(m => m.LightBackground, new { @class = "form-label" })
+                            <div class="input-group">
+                                @Html.TextBoxFor(m => m.LightBackground, new { @class = "form-control", type = "color" })
+                                @Html.TextBoxFor(m => m.LightBackground, new { @class = "form-control", placeholder = "#f8f9fa" })
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            @Html.LabelFor(m => m.DarkBackground, new { @class = "form-label" })
+                            <div class="input-group">
+                                @Html.TextBoxFor(m => m.DarkBackground, new { @class = "form-control", type = "color" })
+                                @Html.TextBoxFor(m => m.DarkBackground, new { @class = "form-control", placeholder = "#212529" })
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        @Html.CheckBoxFor(m => m.IsDefault, new { @class = "form-check-input" })
+                        @Html.LabelFor(m => m.IsDefault, new { @class = "form-check-label" })
+                        <small class="form-text text-muted d-block">Default theme is used when no theme is active</small>
+                    </div>
+
+                    <div class="d-flex gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Create Theme
+                        </button>
+                        <a href="@Url.Action("Index")" class="btn btn-outline-secondary">
+                            <i class="bi bi-x"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-info-circle"></i> Theme Tips
+            </div>
+            <div class="card-body">
+                <p><strong>Color Format:</strong></p>
+                <p class="small">Use hex color codes (#RRGGBB format)</p>
+
+                <p class="mt-3"><strong>Suggestions:</strong></p>
+                <ul class="small">
+                    <li>Use the color picker for easy selection</li>
+                    <li>Ensure good contrast for readability</li>
+                    <li>Test your theme on different screens</li>
+                    <li>Keep accessibility in mind</li>
+                </ul>
+
+                <p class="mt-3"><strong>Pre-made Themes:</strong></p>
+                <p class="small">The portal includes several pre-made themes you can activate or customize.</p>
+            </div>
+        </div>
+    </div>
+</div>

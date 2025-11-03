@@ -1,0 +1,185 @@
+@using System.Web.Optimization;
+
+@model FileSharePortal.ViewModels.ThemeViewModel
+@{
+    ViewBag.Title = "Edit Theme";
+}
+
+<div class="page-header">
+    <h1><i class="bi bi-pencil"></i> Edit Theme</h1>
+    <p class="text-muted">Modify theme colors and settings</p>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="post" action="@Url.Action("Edit")">
+                    @Html.AntiForgeryToken()
+                    @Html.HiddenFor(m => m.ThemeId)
+
+                    <div class="mb-3">
+                        @Html.LabelFor(m => m.ThemeName, new { @class = "form-label" })
+                        @Html.TextBoxFor(m => m.ThemeName, new { @class = "form-control", required = "required" })
+                        @Html.ValidationMessageFor(m => m.ThemeName, "", new { @class = "text-danger" })
+                    </div>
+
+                    <div class="mb-3">
+                        @Html.LabelFor(m => m.Description, new { @class = "form-label" })
+                        @Html.TextAreaFor(m => m.Description, new { @class = "form-control", rows = 2 })
+                    </div>
+
+                    <h5 class="mt-4 mb-3">Primary Colors</h5>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            @Html.LabelFor(m => m.PrimaryColor, new { @class = "form-label" })
+                            <div class="input-group">
+                                @Html.TextBoxFor(m => m.PrimaryColor, new { @class = "form-control", type = "color", required = "required" })
+                                @Html.TextBoxFor(m => m.PrimaryColor, new { @class = "form-control" })
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            @Html.LabelFor(m => m.PrimaryColorHover, new { @class = "form-label" })
+                            <div class="input-group">
+                                @Html.TextBoxFor(m => m.PrimaryColorHover, new { @class = "form-control", type = "color" })
+                                @Html.TextBoxFor(m => m.PrimaryColorHover, new { @class = "form-control" })
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            @Html.LabelFor(m => m.SecondaryColor, new { @class = "form-label" })
+                            <div class="input-group">
+                                @Html.TextBoxFor(m => m.SecondaryColor, new { @class = "form-control", type = "color" })
+                                @Html.TextBoxFor(m => m.SecondaryColor, new { @class = "form-control" })
+                            </div>
+                        </div>
+                    </div>
+
+                    <h5 class="mt-4 mb-3">Status Colors</h5>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            @Html.LabelFor(m => m.SuccessColor, new { @class = "form-label" })
+                            <div class="input-group">
+                                @Html.TextBoxFor(m => m.SuccessColor, new { @class = "form-control", type = "color" })
+                                @Html.TextBoxFor(m => m.SuccessColor, new { @class = "form-control" })
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            @Html.LabelFor(m => m.DangerColor, new { @class = "form-label" })
+                            <div class="input-group">
+                                @Html.TextBoxFor(m => m.DangerColor, new { @class = "form-control", type = "color" })
+                                @Html.TextBoxFor(m => m.DangerColor, new { @class = "form-control" })
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            @Html.LabelFor(m => m.WarningColor, new { @class = "form-label" })
+                            <div class="input-group">
+                                @Html.TextBoxFor(m => m.WarningColor, new { @class = "form-control", type = "color" })
+                                @Html.TextBoxFor(m => m.WarningColor, new { @class = "form-control" })
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            @Html.LabelFor(m => m.InfoColor, new { @class = "form-label" })
+                            <div class="input-group">
+                                @Html.TextBoxFor(m => m.InfoColor, new { @class = "form-control", type = "color" })
+                                @Html.TextBoxFor(m => m.InfoColor, new { @class = "form-control" })
+                            </div>
+                        </div>
+                    </div>
+
+                    <h5 class="mt-4 mb-3">Sidebar Colors</h5>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            @Html.LabelFor(m => m.SidebarBackground, new { @class = "form-label" })
+                            <div class="input-group">
+                                @Html.TextBoxFor(m => m.SidebarBackground, new { @class = "form-control", type = "color" })
+                                @Html.TextBoxFor(m => m.SidebarBackground, new { @class = "form-control" })
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            @Html.LabelFor(m => m.SidebarTextColor, new { @class = "form-label" })
+                            <div class="input-group">
+                                @Html.TextBoxFor(m => m.SidebarTextColor, new { @class = "form-control", type = "color" })
+                                @Html.TextBoxFor(m => m.SidebarTextColor, new { @class = "form-control" })
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            @Html.LabelFor(m => m.SidebarHoverBackground, new { @class = "form-label" })
+                            <div class="input-group">
+                                @Html.TextBoxFor(m => m.SidebarHoverBackground, new { @class = "form-control", type = "color" })
+                                @Html.TextBoxFor(m => m.SidebarHoverBackground, new { @class = "form-control" })
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            @Html.LabelFor(m => m.SidebarActiveBackground, new { @class = "form-label" })
+                            <div class="input-group">
+                                @Html.TextBoxFor(m => m.SidebarActiveBackground, new { @class = "form-control", type = "color" })
+                                @Html.TextBoxFor(m => m.SidebarActiveBackground, new { @class = "form-control" })
+                            </div>
+                        </div>
+                    </div>
+
+                    <h5 class="mt-4 mb-3">Background Colors</h5>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            @Html.LabelFor(m => m.LightBackground, new { @class = "form-label" })
+                            <div class="input-group">
+                                @Html.TextBoxFor(m => m.LightBackground, new { @class = "form-control", type = "color" })
+                                @Html.TextBoxFor(m => m.LightBackground, new { @class = "form-control" })
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            @Html.LabelFor(m => m.DarkBackground, new { @class = "form-label" })
+                            <div class="input-group">
+                                @Html.TextBoxFor(m => m.DarkBackground, new { @class = "form-control", type = "color" })
+                                @Html.TextBoxFor(m => m.DarkBackground, new { @class = "form-control" })
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        @Html.CheckBoxFor(m => m.IsDefault, new { @class = "form-check-input" })
+                        @Html.LabelFor(m => m.IsDefault, new { @class = "form-check-label" })
+                    </div>
+
+                    <div class="d-flex gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Save Changes
+                        </button>
+                        <a href="@Url.Action("Index")" class="btn btn-outline-secondary">
+                            <i class="bi bi-x"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-eye"></i> Theme Preview
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <div class="btn btn-primary btn-sm mb-2" style="background-color: @Model.PrimaryColor; border-color: @Model.PrimaryColor;">
+                        Primary Button
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <span class="badge" style="background-color: @Model.SuccessColor;">Success</span>
+                    <span class="badge" style="background-color: @Model.DangerColor;">Danger</span>
+                    <span class="badge" style="background-color: @Model.InfoColor;">Info</span>
+                </div>
+                <div class="p-3" style="background-color: @Model.SidebarBackground; color: @Model.SidebarTextColor;">
+                    <p class="mb-2"><strong>Sidebar Preview</strong></p>
+                    <div class="p-2 mb-1" style="background-color: @Model.SidebarHoverBackground;">
+                        Hover State
+                    </div>
+                    <div class="p-2" style="background-color: @Model.SidebarActiveBackground; color: @Model.PrimaryColor;">
+                        Active State
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

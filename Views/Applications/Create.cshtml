@@ -1,0 +1,62 @@
+@using System.Web.Optimization;
+
+@{
+    ViewBag.Title = "Add Application";
+}
+
+<div class="page-header">
+    <h1><i class="bi bi-plus-circle"></i> Add Application for Monitoring</h1>
+    <p class="text-muted">Configure a new application to monitor</p>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="post" action="@Url.Action("Create")">
+                    @Html.AntiForgeryToken()
+
+                    <div class="mb-3">
+                        <label for="applicationName" class="form-label">Application Name</label>
+                        <input type="text" class="form-control" id="applicationName" name="applicationName" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="statusEndpoint" class="form-label">Status Endpoint (URL)</label>
+                        <input type="url" class="form-control" id="statusEndpoint" name="statusEndpoint"
+                               placeholder="https://example.com/api/health">
+                        <small class="text-muted">HTTP endpoint to check application status</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="logPath" class="form-label">Log File Path</label>
+                        <input type="text" class="form-control" id="logPath" name="logPath"
+                               placeholder="~/App_Data/Logs/application.log">
+                        <small class="text-muted">Path to application log file (relative to web root)</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="checkIntervalMinutes" class="form-label">Check Interval (minutes)</label>
+                        <input type="number" class="form-control" id="checkIntervalMinutes" name="checkIntervalMinutes"
+                               value="5" min="1" max="1440" required>
+                        <small class="text-muted">How often to check application status</small>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-plus-circle"></i> Add Application
+                        </button>
+                        <a href="@Url.Action("Index")" class="btn btn-outline-secondary">
+                            <i class="bi bi-x"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

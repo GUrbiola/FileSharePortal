@@ -1,0 +1,217 @@
+@using System.Web.Optimization;
+
+@model FileSharePortal.Models.Notification
+@{
+    ViewBag.Title = "Notification Details";
+    var relatedFile = ViewBag.RelatedFile as FileSharePortal.Models.SharedFile;
+    var relatedUser = ViewBag.RelatedUser as FileSharePortal.Models.User;
+}
+
+<div class="page-header">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="@Url.Action("Index", "Home")">Home</a></li>
+            <li class="breadcrumb-item"><a href="@Url.Action("Index")">Notifications</a></li>
+            <li class="breadcrumb-item active">Details</li>
+        </ol>
+    </nav>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                @switch (Model.Type)
+                {
+                    case FileSharePortal.Models.NotificationType.FileShared:
+                        <span><i class="bi bi-share text-success"></i> File Shared</span>
+                        break;
+                    case FileSharePortal.Models.NotificationType.FileReported:
+                        <span><i class="bi bi-flag text-danger"></i> File Reported</span>
+                        break;
+                    case FileSharePortal.Models.NotificationType.FileDeleted:
+                        <span><i class="bi bi-trash text-danger"></i> File Deleted</span>
+                        break;
+                    case FileSharePortal.Models.NotificationType.RoleAssigned:
+                        <span><i class="bi bi-people text-info"></i> Role Assigned</span>
+                        break;
+                    case FileSharePortal.Models.NotificationType.ApplicationAlert:
+                        <span><i class="bi bi-exclamation-triangle text-warning"></i> Application Alert</span>
+                        break;
+                    default:
+                        <span><i class="bi bi-info-circle text-primary"></i> General Notification</span>
+                        break;
+                }
+                <span class="badge @(Model.IsRead ? "bg-secondary" : "bg-primary")">
+                    @(Model.IsRead ? "Read" : "Unread")
+                </span>
+            </div>
+            <div class="card-body">
+                <h4 class="mb-3">@Model.Title</h4>
+
+                <div class="alert alert-light border">
+                    <p class="mb-0">@Model.Message</p>
+                </div>
+
+                <div class="row mt-4">
+                    <div class="col-sm-4"><strong>Received:</strong></div>
+                    <div class="col-sm-8">@Model.CreatedDate.ToString("MMMM dd, yyyy HH:mm:ss")</div>
+                </div>
+
+                @if (Model.IsRead && Model.ReadDate.HasValue)
+                {
+                    <div class="row mt-2">
+                        <div class="col-sm-4"><strong>Read On:</strong></div>
+                        <div class="col-sm-8">@Model.ReadDate.Value.ToString("MMMM dd, yyyy HH:mm:ss")</div>
+                    </div>
+                }
+
+                <div class="row mt-2">
+                    <div class="col-sm-4"><strong>Type:</strong></div>
+                    <div class="col-sm-8">
+                        <span class="badge bg-info">@Model.Type.ToString()</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (relatedFile != null)
+        {
+            <div class="card mt-3">
+                <div class="card-header">
+                    <i class="bi bi-file-earmark"></i> Related File
+                </div>
+                <div class="card-body">
+                    <div class="row mb-2">
+                        <div class="col-sm-4"><strong>File Name:</strong></div>
+                        <div class="col-sm-8">@relatedFile.FileName</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-sm-4"><strong>File Size:</strong></div>
+                        <div class="col-sm-8">@String.Format("{0:0.00} MB", relatedFile.FileSize / 1048576.0)</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-sm-4"><strong>Uploaded:</strong></div>
+                        <div class="col-sm-8">@relatedFile.UploadedDate.ToString("MMM dd, yyyy")</div>
+                    </div>
+                    @if (!relatedFile.IsDeleted)
+                    {
+                        <div class="mt-3">
+                            <a href="@Url.Action("Details", "Files", new { id = relatedFile.FileId })" class="btn btn-primary btn-sm">
+                                <i class="bi bi-eye"></i> View File Details
+                            </a>
+                            <a href="@Url.Action("Download", "Files", new { id = relatedFile.FileId })" class="btn btn-success btn-sm">
+                                <i class="bi bi-download"></i> Download File
+                            </a>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-warning mt-3 mb-0">
+                            <i class="bi bi-exclamation-triangle"></i> This file has been deleted.
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        @if (relatedUser != null)
+        {
+            <div class="card mt-3">
+                <div class="card-header">
+                    <i class="bi bi-person"></i> Related User
+                </div>
+                <div class="card-body">
+                    <div class="row mb-2">
+                        <div class="col-sm-4"><strong>Full Name:</strong></div>
+                        <div class="col-sm-8">@relatedUser.FullName</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-sm-4"><strong>Email:</strong></div>
+                        <div class="col-sm-8">@relatedUser.Email</div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-sm-4"><strong>Username:</strong></div>
+                        <div class="col-sm-8">@relatedUser.Username</div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-lightning"></i> Actions
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="@Url.Action("Index")" class="btn btn-outline-primary">
+                        <i class="bi bi-arrow-left"></i> Back to Notifications
+                    </a>
+
+                    @if (!string.IsNullOrEmpty(Model.ActionUrl))
+                    {
+                        <a href="@Model.ActionUrl" class="btn btn-primary">
+                            <i class="bi bi-box-arrow-up-right"></i> Go to Related Item
+                        </a>
+                    }
+
+                    @if (!Model.IsRead)
+                    {
+                        <button type="button" class="btn btn-success" onclick="markAsReadAndReturn(@Model.NotificationId)">
+                            <i class="bi bi-check"></i> Mark as Read
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <i class="bi bi-info-circle"></i> Notification Info
+            </div>
+            <div class="card-body">
+                <p class="small mb-2">
+                    <strong>Notification ID:</strong><br />
+                    <code>@Model.NotificationId</code>
+                </p>
+                <p class="small mb-2">
+                    <strong>Status:</strong><br />
+                    @if (Model.IsRead)
+                    {
+                        <span class="text-success"><i class="bi bi-check-circle"></i> Read</span>
+                    }
+                    else
+                    {
+                        <span class="text-warning"><i class="bi bi-exclamation-circle"></i> Unread</span>
+                    }
+                </p>
+                @if (Model.RelatedFileId.HasValue)
+                {
+                    <p class="small mb-2">
+                        <strong>Related File ID:</strong><br />
+                        <code>@Model.RelatedFileId</code>
+                    </p>
+                }
+                @if (Model.RelatedApplicationId.HasValue)
+                {
+                    <p class="small mb-0">
+                        <strong>Related Application ID:</strong><br />
+                        <code>@Model.RelatedApplicationId</code>
+                    </p>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section scripts {
+    <script>
+        function markAsReadAndReturn(notificationId) {
+            $.post('@Url.Action("MarkAsRead")', { id: notificationId }, function () {
+                window.location.href = '@Url.Action("Index")';
+            });
+        }
+    </script>
+}

@@ -1,0 +1,369 @@
+@using System.Web.Optimization;
+
+@model List<FileSharePortal.Models.User>
+    @{
+        ViewBag.Title = "User Management";
+    }
+
+    <div class="page-header d-flex justify-content-between align-items-center">
+        <div>
+            <h1><i class="bi bi-people"></i> User Management</h1>
+            <p class="text-muted">Manage system users</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-info" onclick="syncADUsers()" id="syncButton">
+                <i class="bi bi-arrow-repeat"></i> Sync AD Users
+            </button>
+            <a href="@Url.Action("CreateUser")" class="btn btn-primary">
+                <i class="bi bi-person-plus"></i> Create User
+            </a>
+        </div>
+    </div>
+
+    <div class="alert alert-info alert-dismissible fade show" role="alert">
+        <i class="bi bi-info-circle"></i>
+        <strong>Password Management:</strong> Use the <i class="bi bi-key text-warning"></i> button to reset passwords for database users.
+        Active Directory user passwords must be reset through your AD system.
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <input type="text" id="filterUsername" class="form-control" placeholder="Filter by username...">
+                </div>
+                <div class="col-md-3">
+                    <input type="text" id="filterFullName" class="form-control" placeholder="Filter by name...">
+                </div>
+                <div class="col-md-3">
+                    <input type="text" id="filterEmail" class="form-control" placeholder="Filter by email...">
+                </div>
+                <div class="col-md-3">
+                    <select id="filterSource" class="form-select">
+                        <option value="">All Sources</option>
+                        <option value="ad">Active Directory</option>
+                        <option value="db">Database</option>
+                    </select>
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <select id="filterAdmin" class="form-select">
+                        <option value="">All Roles</option>
+                        <option value="true">Admin Only</option>
+                        <option value="false">Non-Admin</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select id="filterStatus" class="form-select">
+                        <option value="">All Status</option>
+                        <option value="true">Active</option>
+                        <option value="false">Inactive</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <button type="button" class="btn btn-secondary" onclick="clearFilters()">
+                        <i class="bi bi-x-circle"></i> Clear Filters
+                    </button>
+                </div>
+                <div class="col-md-3 text-end">
+                    <span id="resultCount" class="text-muted"></span>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover" id="usersTable">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Full Name</th>
+                            <th>Email</th>
+                            <th>Source</th>
+                            <th>Admin</th>
+                            <th>Status</th>
+                            <th>Last Login</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var user in Model)
+                        {
+                            <tr id="user_@user.UserId">
+                                <td><strong>@user.Username</strong></td>
+                                <td>@user.FullName</td>
+                                <td>@user.Email</td>
+                                <td>
+                                    @if (user.IsFromActiveDirectory)
+                                    {
+                                        <span class="badge bg-info">Active Directory</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">Database</span>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" @(user.IsAdmin ? "checked" : "") onchange="toggleAdmin(@user.UserId)">
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" @(user.IsActive ? "checked" : "") onchange="toggleStatus(@user.UserId)">
+                                    </div>
+                                </td>
+                                <td>
+                                    @if (user.LastLoginDate.HasValue)
+                                    {
+                                        @user.LastLoginDate.Value.ToString("MMM dd, yyyy")
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Never</span>
+                                    }
+                                </td>
+                                <td class="table-actions">
+                                    @if (!user.IsFromActiveDirectory)
+                                    {
+                                        <button type="button" class="btn btn-sm btn-warning" onclick="resetPassword(@user.UserId, '@user.Username')" title="Reset Password">
+                                            <i class="bi bi-key"></i>
+                                        </button>
+                                    }
+                                    <span class="badge bg-primary ms-2" data-bs-toggle="tooltip" title="User ID">ID: @user.UserId</span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    @section scripts {
+        <script>
+        $(document).ready(function ()
+        {
+            $('.sidebar-link').removeClass('active');
+            $('#UsersLink').addClass('active');
+
+            // Initialize filter event handlers
+            $('#filterUsername, #filterFullName, #filterEmail').on('keyup', filterTable);
+            $('#filterSource, #filterAdmin, #filterStatus').on('change', filterTable);
+
+            // Show initial count
+            updateResultCount();
+        });
+
+
+        function toggleStatus(userId) {
+            $.post('@Url.Action("ToggleUserStatus")', { userId: userId }, function (data) {
+                if (data.success) {
+                    console.log('User status updated');
+                }
+            });
+        }
+
+        function toggleAdmin(userId) {
+            $.post('@Url.Action("ToggleAdminStatus")', { userId: userId }, function (data) {
+                if (data.success) {
+                    console.log('Admin status updated');
+                }
+            });
+        }
+
+        function syncADUsers() {
+            var syncButton = $('#syncButton');
+            var originalText = syncButton.html();
+
+            // Disable button and show loading state
+            syncButton.prop('disabled', true);
+            syncButton.html('<i class="bi bi-arrow-repeat spinner-border spinner-border-sm"></i> Synchronizing...');
+
+            $.post('@Url.Action("SyncADUsers")', function (data) {
+                syncButton.prop('disabled', false);
+                syncButton.html(originalText);
+
+                if (data.success) {
+                    // Show detailed success message
+                    var message = data.message + '\n\n';
+                    message += 'Details:\n';
+                    message += '- Total AD Users: ' + data.totalADUsers + '\n';
+                    message += '- Users Added: ' + data.usersAdded + '\n';
+                    message += '- Users Updated: ' + data.usersUpdated + '\n';
+                    message += '- Users Reactivated: ' + data.usersReactivated + '\n';
+                    message += '- Users Disabled: ' + data.usersDisabled;
+
+                    alert(message);
+
+                    // Reload page to show updated user list
+                    if (data.usersAdded > 0 || data.usersUpdated > 0 || data.usersReactivated > 0 || data.usersDisabled > 0) {
+                        location.reload();
+                    }
+                } else {
+                    alert('Synchronization failed: ' + data.message);
+                }
+            }).fail(function (xhr, status, error) {
+                syncButton.prop('disabled', false);
+                syncButton.html(originalText);
+                alert('Error during synchronization: ' + error);
+            });
+        }
+
+        function resetPassword(userId, username) {
+            var newPassword = prompt('Enter new password for user "' + username + '":\n\n(Minimum 6 characters)', '');
+
+            if (newPassword === null) {
+                // User cancelled
+                return;
+            }
+
+            if (newPassword.trim() === '') {
+                alert('Password cannot be empty');
+                return;
+            }
+
+            if (newPassword.length < 6) {
+                alert('Password must be at least 6 characters long');
+                return;
+            }
+
+            // Confirm password
+            var confirmPassword = prompt('Confirm new password for user "' + username + '":', '');
+
+            if (confirmPassword === null) {
+                // User cancelled
+                return;
+            }
+
+            if (newPassword !== confirmPassword) {
+                alert('Passwords do not match. Please try again.');
+                return;
+            }
+
+            // Final confirmation
+            if (!confirm('Are you sure you want to reset the password for user "' + username + '"?\n\nThe user will be notified of this change.')) {
+                return;
+            }
+
+            // Send password reset request
+            $.post('@Url.Action("ResetPassword")', { userId: userId, newPassword: newPassword }, function (data) {
+                if (data.success) {
+                    alert(data.message);
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            }).fail(function (xhr, status, error) {
+                alert('Error resetting password: ' + error);
+            });
+        }
+
+        function filterTable() {
+            var usernameFilter = $('#filterUsername').val().toLowerCase();
+            var nameFilter = $('#filterFullName').val().toLowerCase();
+            var emailFilter = $('#filterEmail').val().toLowerCase();
+            var sourceFilter = $('#filterSource').val();
+            var adminFilter = $('#filterAdmin').val();
+            var statusFilter = $('#filterStatus').val();
+
+            var visibleCount = 0;
+
+            $('#usersTable tbody tr').each(function () {
+                var row = $(this);
+                var username = row.find('td:eq(0)').text().toLowerCase();
+                var fullName = row.find('td:eq(1)').text().toLowerCase();
+                var email = row.find('td:eq(2)').text().toLowerCase();
+                var source = row.find('td:eq(3)').text().toLowerCase();
+                var isAdmin = row.find('td:eq(4) input[type="checkbox"]').is(':checked');
+                var isActive = row.find('td:eq(5) input[type="checkbox"]').is(':checked');
+
+                var showRow = true;
+
+                // Apply username filter
+                if (usernameFilter && !username.includes(usernameFilter)) {
+                    showRow = false;
+                }
+
+                // Apply full name filter
+                if (nameFilter && !fullName.includes(nameFilter)) {
+                    showRow = false;
+                }
+
+                // Apply email filter
+                if (emailFilter && !email.includes(emailFilter)) {
+                    showRow = false;
+                }
+
+                // Apply source filter
+                if (sourceFilter) {
+                    if (sourceFilter === 'ad' && !source.includes('active directory')) {
+                        showRow = false;
+                    } else if (sourceFilter === 'db' && !source.includes('database')) {
+                        showRow = false;
+                    }
+                }
+
+                // Apply admin filter
+                if (adminFilter) {
+                    if (adminFilter === 'true' && !isAdmin) {
+                        showRow = false;
+                    } else if (adminFilter === 'false' && isAdmin) {
+                        showRow = false;
+                    }
+                }
+
+                // Apply status filter
+                if (statusFilter) {
+                    if (statusFilter === 'true' && !isActive) {
+                        showRow = false;
+                    } else if (statusFilter === 'false' && isActive) {
+                        showRow = false;
+                    }
+                }
+
+                if (showRow) {
+                    row.show();
+                    visibleCount++;
+                } else {
+                    row.hide();
+                }
+            });
+
+            updateResultCount(visibleCount);
+        }
+
+        function clearFilters() {
+            $('#filterUsername, #filterFullName, #filterEmail').val('');
+            $('#filterSource, #filterAdmin, #filterStatus').val('');
+            filterTable();
+        }
+
+        function updateResultCount(count) {
+            if (count === undefined) {
+                count = $('#usersTable tbody tr:visible').length;
+            }
+            var total = $('#usersTable tbody tr').length;
+            $('#resultCount').text('Showing ' + count + ' of ' + total + ' users');
+        }
+
+        // Add animation class for spinner
+        $('<style>')
+            .prop('type', 'text/css')
+            .html(`
+                @@keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+                .spinner-border-sm {
+                    display: inline-block;
+                    width: 1rem;
+                    height: 1rem;
+                    vertical-align: text-bottom;
+                    border: 0.15em solid currentColor;
+                    border-right-color: transparent;
+                    border-radius: 50%;
+                    animation: spin 0.75s linear infinite;
+                }
+            `)
+            .appendTo('head');
+        </script>
+    }

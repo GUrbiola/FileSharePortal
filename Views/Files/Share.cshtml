@@ -1,0 +1,161 @@
+@using System.Web.Optimization;
+
+@{
+    ViewBag.Title = "Share File";
+    var file = ViewBag.File as FileSharePortal.Models.SharedFile;
+    var users = ViewBag.Users as List<FileSharePortal.Models.User>;
+    var roles = ViewBag.Roles as List<FileSharePortal.Models.Role>;
+    var sharedUserIds = ViewBag.SharedUserIds as List<int> ?? new List<int>();
+    var sharedRoleIds = ViewBag.SharedRoleIds as List<int> ?? new List<int>();
+}
+
+<div class="page-header">
+    <h1><i class="bi bi-share"></i> Share File</h1>
+    <p class="text-muted">Share "@file.FileName" with users and roles</p>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-people"></i> Select Recipients
+            </div>
+            <div class="card-body">
+                <form method="post" action="@Url.Action("Share")">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="fileId" value="@file.FileId" />
+
+                    <div class="mb-4">
+                        <label class="form-label" for="userSelect"><strong>Share with Users</strong></label>
+                        <small class="text-muted d-block mb-2">Type to search and select users to share this file with.</small>
+                        <select id="userSelect" name="userIds" class="form-control" multiple="multiple" style="width: 100%;">
+                            @foreach (var userId in sharedUserIds)
+                            {
+                                var user = users.FirstOrDefault(u => u.UserId == userId);
+                                if (user != null)
+                                {
+                                    <option value="@user.UserId" selected="selected">@user.FullName (@user.Email)</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label"><strong>Share with Roles</strong></label>
+                        <small class="text-muted d-block mb-2">Select roles to share this file with. All users in the role will have access.</small>
+                        <div class="row">
+                            @foreach (var role in roles)
+                            {
+                                var isChecked = sharedRoleIds.Contains(role.RoleId);
+                                <div class="col-md-6 mb-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="roleIds" value="@role.RoleId" id="role_@role.RoleId" @(isChecked ? "checked" : "")>
+                                        <label class="form-check-label" for="role_@role.RoleId">
+                                            @role.RoleName
+                                            @if (isChecked)
+                                            {
+                                                <span class="badge bg-success">Current</span>
+                                            }
+                                            @if (!string.IsNullOrEmpty(role.Description))
+                                            {
+                                                <br />
+                                                <small class="text-muted">@role.Description</small>
+                                            }
+                                        </label>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-share"></i> Share File
+                        </button>
+                        <a href="@Url.Action("Details", new { id = file.FileId })" class="btn btn-outline-secondary">
+                            <i class="bi bi-x"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-file-earmark"></i> File Information
+            </div>
+            <div class="card-body">
+                <p><strong>File Name:</strong><br />@file.FileName</p>
+                <p><strong>Size:</strong><br />@String.Format("{0:0.00} MB", file.FileSize / 1048576.0)</p>
+                <p><strong>Uploaded:</strong><br />@file.UploadedDate.ToString("MMM dd, yyyy")</p>
+                @if (!string.IsNullOrEmpty(file.Description))
+                {
+                    <p><strong>Description:</strong><br />@file.Description</p>
+                }
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <i class="bi bi-bell"></i> Notification Info
+            </div>
+            <div class="card-body">
+                <p class="small">
+                    <strong>Automatic Notifications:</strong>
+                </p>
+                <ul class="small">
+                    <li><strong>New Access:</strong> Users who gain access will receive a notification</li>
+                    <li><strong>Access Removed:</strong> Users who lose access will be notified</li>
+                    <li><strong>Role-Based:</strong> All users in selected roles will be notified</li>
+                </ul>
+                <div class="alert alert-info small mb-0">
+                    <i class="bi bi-info-circle"></i> Users see exactly who has access based on their role memberships and distribution lists.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section styles {
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+}
+
+@section scripts {
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script>
+        $(document).ready(function () {
+
+            $('.sidebar-link').removeClass('active');
+            $('#FilesLink').addClass('active');
+
+            // Initialize Select2 for user selection with AJAX search
+            $('#userSelect').select2({
+                theme: 'bootstrap-5',
+                placeholder: 'Type to search for users...',
+                allowClear: true,
+                ajax: {
+                    url: '@Url.Action("SearchUsers")',
+                    dataType: 'json',
+                    delay: 250,
+                    data: function(params) {
+                        return {
+                            term: params.term,
+                            fileId: @file.FileId
+                        };
+                    },
+                    processResults: function(data) {
+                        return {
+                            results: data
+                        };
+                    },
+                    cache: true
+                },
+                minimumInputLength: 1,
+                tags: false
+            });
+        });
+    </script>
+}

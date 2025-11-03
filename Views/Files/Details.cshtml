@@ -1,0 +1,226 @@
+@using System.Web.Optimization;
+
+@model FileSharePortal.Models.SharedFile
+@{
+    ViewBag.Title = "File Details";
+    var currentUser = ViewBag.CurrentUser as FileSharePortal.Models.User;
+    var sharedWith = ViewBag.SharedWith as List<FileSharePortal.Models.FileShare>;
+}
+
+<div class="page-header">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="@Url.Action("Index", "Home")">Home</a></li>
+            <li class="breadcrumb-item"><a href="@Url.Action("Index")">Files</a></li>
+            <li class="breadcrumb-item active">@Model.FileName</li>
+        </ol>
+    </nav>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        @if (ViewBag.IsPreviewable)
+        {
+            <div class="card mb-3">
+                <div class="card-header">
+                    <i class="bi bi-eye"></i> File Preview
+                </div>
+                <div class="card-body">
+                    @if (ViewBag.IsImage)
+                    {
+                        <div class="text-center">
+                            <img src="@Url.Action("Preview", new { id = Model.FileId })" alt="@Model.FileName" class="img-fluid" style="max-height: 500px; border: 1px solid #ddd; border-radius: 4px;" />
+                        </div>
+                    }
+                    else if (ViewBag.IsPdf)
+                    {
+                        <embed src="@Url.Action("Preview", new { id = Model.FileId })" type="application/pdf" width="100%" height="600px" style="border: 1px solid #ddd; border-radius: 4px;" />
+                    }
+                    else if (ViewBag.IsText)
+                    {
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i> Text files can be viewed by downloading them.
+                            <a href="@Url.Action("Download", new { id = Model.FileId })" class="alert-link">Download to view</a>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-file-earmark"></i> File Information</span>
+                <div class="btn-group">
+                    <a href="@Url.Action("Download", new { id = Model.FileId })" class="btn btn-sm btn-primary">
+                        <i class="bi bi-download"></i> Download
+                    </a>
+                    @if (Model.UploadedByUserId == currentUser.UserId || currentUser.IsAdmin)
+                    {
+                        <a href="@Url.Action("Share", new { id = Model.FileId })" class="btn btn-sm btn-success">
+                            <i class="bi bi-share"></i> Share
+                        </a>
+                    }
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>File Name:</strong></div>
+                    <div class="col-sm-8">@Model.FileName</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>File Size:</strong></div>
+                    <div class="col-sm-8">@String.Format("{0:0.00} MB", Model.FileSize / 1048576.0)</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Content Type:</strong></div>
+                    <div class="col-sm-8">@Model.ContentType</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Uploaded By:</strong></div>
+                    <div class="col-sm-8">@Model.UploadedBy.FullName</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Uploaded Date:</strong></div>
+                    <div class="col-sm-8">@Model.UploadedDate.ToString("MMMM dd, yyyy HH:mm:ss")</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Download Count:</strong></div>
+                    <div class="col-sm-8"><span class="badge bg-info">@Model.DownloadCount</span></div>
+                </div>
+                @if (!string.IsNullOrEmpty(Model.Description))
+                {
+                    <div class="row mb-3">
+                        <div class="col-sm-4"><strong>Description:</strong></div>
+                        <div class="col-sm-8">@Model.Description</div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        @if (sharedWith != null && sharedWith.Any())
+        {
+            <div class="card mt-3">
+                <div class="card-header">
+                    <i class="bi bi-share"></i> Sharing Configuration
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3">Direct shares (users and roles)</p>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Recipient</th>
+                                    <th>Type</th>
+                                    <th>Shared Date</th>
+                                    <th>Can Download</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var share in sharedWith)
+                                {
+                                    <tr>
+                                        <td>
+                                            @if (share.SharedWithUser != null)
+                                            {
+                                                @share.SharedWithUser.FullName
+                                            }
+                                            else if (share.SharedWithRole != null)
+                                            {
+                                                @share.SharedWithRole.RoleName
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (share.SharedWithUserId != null)
+                                            {
+                                                <span class="badge bg-primary">User</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-info">Role</span>
+                                            }
+                                        </td>
+                                        <td>@share.SharedDate.ToString("MMM dd, yyyy")</td>
+                                        <td>
+                                            @if (share.CanDownload)
+                                            {
+                                                <i class="bi bi-check-circle text-success"></i>
+                                            }
+                                            else
+                                            {
+                                                <i class="bi bi-x-circle text-danger"></i>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @{
+            var usersWithAccess = ViewBag.UsersWithAccess as List<dynamic>;
+        }
+        @if (usersWithAccess != null && usersWithAccess.Any())
+        {
+            <div class="card mt-3">
+                <div class="card-header">
+                    <i class="bi bi-people"></i> All Users With Access
+                    <span class="badge bg-primary">@usersWithAccess.Count</span>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3">All users who can access this file (including through roles and distribution lists)</p>
+                    <div class="row">
+                        @foreach (var user in usersWithAccess)
+                        {
+                            <div class="col-md-6 mb-2">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-person-circle me-2 text-primary"></i>
+                                    <div>
+                                        <strong>@user.FullName</strong><br />
+                                        <small class="text-muted">@user.Email</small>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-lightning"></i> Actions
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="@Url.Action("Download", new { id = Model.FileId })" class="btn btn-primary">
+                        <i class="bi bi-download"></i> Download File
+                    </a>
+                    @if (Model.UploadedByUserId == currentUser.UserId || currentUser.IsAdmin)
+                    {
+                        <a href="@Url.Action("Share", new { id = Model.FileId })" class="btn btn-success">
+                            <i class="bi bi-share"></i> Share File
+                        </a>
+                    }
+                    @if (Model.UploadedByUserId != currentUser.UserId)
+                    {
+                        <a href="@Url.Action("Report", new { id = Model.FileId })" class="btn btn-danger">
+                            <i class="bi bi-flag"></i> Report File
+                        </a>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@section scripts {
+    <script>$(document).ready(function ()
+        {
+            $('.sidebar-link').removeClass('active');
+            $('#FilesLink').addClass('active');
+        });</script>
+}

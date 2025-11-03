@@ -1,0 +1,151 @@
+@using System.Web.Optimization;
+
+@{
+    ViewBag.Title = "Manage Role";
+    var role = ViewBag.Role as FileSharePortal.Models.Role;
+    var allUsers = ViewBag.AllUsers as List<FileSharePortal.Models.User>;
+    var roleUsers = ViewBag.RoleUsers as List<FileSharePortal.Models.User>;
+    var distributionLists = ViewBag.DistributionLists as List<FileSharePortal.Models.DistributionList>;
+    var roleDistributionLists = ViewBag.RoleDistributionLists as List<FileSharePortal.Models.DistributionList>;
+}
+
+<div class="page-header">
+    <h1><i class="bi bi-diagram-3"></i> Manage Role: @role.RoleName</h1>
+    <p class="text-muted">@role.Description</p>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-people"></i> Manual Users
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="userSelect" class="form-label">Add User</label>
+                    <select class="form-select" id="userSelect">
+                        <option value="">Select a user...</option>
+                        @foreach (var user in allUsers.Where(u => !roleUsers.Contains(u)))
+                        {
+                            <option value="@user.UserId">@user.FullName (@user.Username)</option>
+                        }
+                    </select>
+                    <button type="button" class="btn btn-primary btn-sm mt-2" onclick="addUser()">
+                        <i class="bi bi-plus"></i> Add User
+                    </button>
+                </div>
+
+                <div class="list-group">
+                    @foreach (var user in roleUsers)
+                    {
+                        <div class="list-group-item d-flex justify-content-between align-items-center" id="roleUser_@user.UserId">
+                            <div>
+                                <strong>@user.FullName</strong>
+                                <br />
+                                <small class="text-muted">@user.Email</small>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeUser(@user.UserId)">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-list-ul"></i> Distribution Lists
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="dlSelect" class="form-label">Add Distribution List</label>
+                    <select class="form-select" id="dlSelect">
+                        <option value="">Select a distribution list...</option>
+                        @foreach (var dl in distributionLists.Where(d => !roleDistributionLists.Contains(d)))
+                        {
+                            <option value="@dl.DistributionListId">@dl.Name</option>
+                        }
+                    </select>
+                    <button type="button" class="btn btn-primary btn-sm mt-2" onclick="addDistributionList()">
+                        <i class="bi bi-plus"></i> Add Distribution List
+                    </button>
+                </div>
+
+                <div class="list-group">
+                    @foreach (var dl in roleDistributionLists)
+                    {
+                        <div class="list-group-item d-flex justify-content-between align-items-center" id="roleDL_@dl.DistributionListId">
+                            <div>
+                                <strong>@dl.Name</strong>
+                                <br />
+                                <small class="text-muted">@dl.ADDistinguishedName</small>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeDistributionList(@dl.DistributionListId)">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-3">
+    <a href="@Url.Action("Roles")" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back to Roles
+    </a>
+</div>
+
+@section scripts {
+    <script>
+        function addUser() {
+            var userId = $('#userSelect').val();
+            if (userId) {
+                $.post('@Url.Action("AddUserToRole")', { roleId: @role.RoleId, userId: userId }, function (data) {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert(data.message || 'Error adding user');
+                    }
+                });
+            }
+        }
+
+        function removeUser(userId) {
+            if (confirm('Remove this user from the role?')) {
+                $.post('@Url.Action("RemoveUserFromRole")', { roleId: @role.RoleId, userId: userId }, function (data) {
+                    if (data.success) {
+                        $('#roleUser_' + userId).remove();
+                    }
+                });
+            }
+        }
+
+        function addDistributionList() {
+            var dlId = $('#dlSelect').val();
+            if (dlId) {
+                $.post('@Url.Action("AddDistributionListToRole")', { roleId: @role.RoleId, distributionListId: dlId }, function (data) {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert(data.message || 'Error adding distribution list');
+                    }
+                });
+            }
+        }
+
+        function removeDistributionList(dlId) {
+            if (confirm('Remove this distribution list from the role?')) {
+                $.post('@Url.Action("RemoveDistributionListFromRole")', { roleId: @role.RoleId, distributionListId: dlId }, function (data) {
+                    if (data.success) {
+                        $('#roleDL_' + dlId).remove();
+                    }
+                });
+            }
+        }
+    </script>
+}

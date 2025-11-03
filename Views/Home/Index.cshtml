@@ -1,0 +1,144 @@
+@using System.Web.Optimization;
+
+@{
+    ViewBag.Title = "Dashboard";
+    var currentUser = ViewBag.CurrentUser as FileSharePortal.Models.User;
+    var recentFiles = ViewBag.RecentFiles as List<FileSharePortal.Models.SharedFile>;
+}
+
+<div class="page-header">
+    <h1>Welcome back, @currentUser.FullName!</h1>
+    <p class="text-muted">Here's what's happening with your files</p>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="stat-card">
+            <h3>@ViewBag.UploadedFilesCount</h3>
+            <p><i class="bi bi-folder"></i> My Uploaded Files</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card" style="background: linear-gradient(135deg, #198754 0%, #157347 100%);">
+            <h3>@ViewBag.SharedFilesCount</h3>
+            <p><i class="bi bi-share"></i> Files Shared With Me</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card" style="background: linear-gradient(135deg, #0dcaf0 0%, #0aa2c0 100%);">
+            <h3 id="unreadNotifications">0</h3>
+            <p><i class="bi bi-bell"></i> Unread Notifications</p>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-clock-history"></i> Recent Files Shared With You
+            </div>
+            <div class="card-body">
+                @if (recentFiles != null && recentFiles.Any())
+                {
+                    <div class="list-group list-group-flush">
+                        @foreach (var file in recentFiles)
+                        {
+                            <a href="@Url.Action("Details", "Files", new { id = file.FileId })" class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between align-items-center">
+                                    <div>
+                                        <i class="bi bi-file-earmark file-icon"></i>
+                                        <strong>@file.FileName</strong>
+                                        <p class="mb-0 text-muted small">
+                                            Uploaded by @file.UploadedBy.FullName
+                                        </p>
+                                    </div>
+                                    <div class="text-end">
+                                        <small class="text-muted">@file.UploadedDate.ToString("MMM dd, yyyy")</small>
+                                        <br />
+                                        <span class="badge bg-primary">@String.Format("{0:0.00} MB", file.FileSize / 1048576.0)</span>
+                                    </div>
+                                </div>
+                            </a>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted text-center py-4">No files shared with you yet.</p>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-lightning"></i> Quick Actions
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="@Url.Action("Upload", "Files")" class="btn btn-primary">
+                        <i class="bi bi-upload"></i> Upload File
+                    </a>
+                    <a href="@Url.Action("Index", "Files")" class="btn btn-outline-primary">
+                        <i class="bi bi-folder"></i> My Files
+                    </a>
+                    <a href="@Url.Action("SharedWithMe", "Files")" class="btn btn-outline-primary">
+                        <i class="bi bi-share"></i> Shared With Me
+                    </a>
+                    @if(Settings.ShowNotificationsSection)
+                    {
+                        <a href="@Url.Action("Index", "Notifications")" class="btn btn-outline-primary">
+                            <i class="bi bi-bell"></i> Notifications
+                        </a>
+                    }
+                    else
+                    {
+                        <a href="#" class="btn btn-outline-primary">
+                            <i class="bi bi-bell"></i> Notifications
+                        </a>
+                    }
+                </div>
+            </div>
+        </div>
+
+        @if (currentUser.IsAdmin && Settings.ShowAdminSection)
+        {
+            <div class="card mt-3">
+                <div class="card-header">
+                    <i class="bi bi-gear"></i> Admin Tools
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="@Url.Action("Index", "Admin")" class="btn btn-outline-secondary">
+                            <i class="bi bi-speedometer2"></i> Admin Dashboard
+                        </a>
+                        <a href="@Url.Action("Users", "Admin")" class="btn btn-outline-secondary">
+                            <i class="bi bi-people"></i> Manage Users
+                        </a>
+                        <a href="@Url.Action("Reports", "Admin")" class="btn btn-outline-secondary">
+                            <i class="bi bi-flag"></i> File Reports
+                        </a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@section scripts {
+    <script>
+        $(document).ready(function ()
+        {
+
+            $('.sidebar-link').removeClass('active');
+            $('#HomeLink').addClass('active');
+
+
+            $.getJSON('@Url.Action("GetUnreadCount", "Notifications")', function (data) {
+                $('#unreadNotifications').text(data.count);
+            });
+        });
+    </script>
+}

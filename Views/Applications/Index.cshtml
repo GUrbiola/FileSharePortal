@@ -1,0 +1,121 @@
+@using System.Web.Optimization;
+
+@model List<FileSharePortal.Models.Application>
+    @{
+        ViewBag.Title = "Application Monitoring";
+        var currentUser = ViewBag.CurrentUser as FileSharePortal.Models.User;
+    }
+
+    <div class="page-header d-flex justify-content-between align-items-center">
+        <div>
+            <h1><i class="bi bi-grid"></i> Application Monitoring</h1>
+            <p class="text-muted">Monitor and manage application status</p>
+        </div>
+        @if (currentUser.IsAdmin)
+        {
+            <div>
+                <a href="@Url.Action("Create")" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> Add Application
+                </a>
+            </div>
+        }
+    </div>
+
+    <div class="row">
+        @if (Model != null && Model.Any())
+        {
+            foreach (var app in Model)
+            {
+                <div class="col-md-6 col-lg-4">
+                    <div class="card file-card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <h5 class="card-title mb-0">@app.ApplicationName</h5>
+                                <div class="app-status-badge">
+                                    <span class="status-indicator @app.CurrentStatus.ToString().ToLower()"></span>
+                                    <span class="badge @(app.CurrentStatus == FileSharePortal.Models.ApplicationStatus.Running ? "bg-success" : app.CurrentStatus == FileSharePortal.Models.ApplicationStatus.Error ? "bg-danger" : "bg-secondary")">
+                                        @app.CurrentStatus
+                                    </span>
+                                </div>
+                            </div>
+
+                            @if (!string.IsNullOrEmpty(app.Description))
+                            {
+                                <p class="text-muted small">@app.Description</p>
+                            }
+
+                            <div class="mb-3">
+                                @if (app.LastStatusCheck.HasValue)
+                                {
+                                    <small class="text-muted">
+                                        <i class="bi bi-clock"></i> Last checked: @app.LastStatusCheck.Value.ToString("MMM dd, yyyy HH:mm")
+                                    </small>
+                                }
+                                @if (app.LastSuccessfulRun.HasValue)
+                                {
+                                    <br />
+                                    <small class="text-muted">
+                                        <i class="bi bi-check-circle"></i> Last success: @app.LastSuccessfulRun.Value.ToString("MMM dd, yyyy HH:mm")
+                                    </small>
+                                }
+                            </div>
+
+                            <div class="d-flex gap-2">
+                                <a href="@Url.Action("Details", new { id = app.ApplicationId })" class="btn btn-sm btn-outline-primary flex-grow-1">
+                                    <i class="bi bi-eye"></i> Details
+                                </a>
+                                <button type="button" class="btn btn-sm btn-outline-info" onclick="checkStatus(@app.ApplicationId)" title="Check Status">
+                                    <i class="bi bi-arrow-clockwise"></i>
+                                </button>
+                                @if (!string.IsNullOrEmpty(app.LogPath))
+                                {
+                                    <a href="@Url.Action("DownloadLog", new { id = app.ApplicationId })" class="btn btn-sm btn-outline-secondary" title="Download Log">
+                                        <i class="bi bi-download"></i>
+                                    </a>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <i class="bi bi-grid" style="font-size: 4rem; color: #ccc;"></i>
+                        <h3 class="mt-3">No Applications</h3>
+                        <p class="text-muted">No applications configured for monitoring</p>
+                        @if (currentUser.IsAdmin)
+                        {
+                            <a href="@Url.Action("Create")" class="btn btn-primary mt-3">
+                                <i class="bi bi-plus-circle"></i> Add Application
+                            </a>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    @section scripts {
+        <script>
+        $(document).ready(function () {
+            $('.sidebar-link').removeClass('active');
+            $('#ApplicationsLink').addClass('active');
+        });
+        function checkStatus(appId) {
+            $.post('@Url.Action("CheckStatus")', { id: appId }, function (data) {
+                if (data.success) {
+                    location.reload();
+                }
+            });
+        }
+
+        // Auto-refresh every 60 seconds
+        setInterval(function () {
+            location.reload();
+        }, 60000);
+        </script>
+    }
