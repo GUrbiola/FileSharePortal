@@ -129,6 +129,8 @@
     <Compile Include="Controllers\ApplicationsController.cs" />
     <Compile Include="Controllers\FilesController.cs" />
     <Compile Include="Controllers\HomeController.cs" />
+    <Compile Include="Controllers\ErrorController.cs" />
+    <Compile Include="Controllers\ErrorLogsController.cs" />
     <Compile Include="Controllers\NotificationsController.cs" />
     <Compile Include="Controllers\ThemeController.cs" />
     <Compile Include="Filters\ApiAuthenticationAttribute.cs" />
@@ -148,6 +150,18 @@
     <Compile Include="Migrations\202511030223047_API.Designer.cs">
       <DependentUpon>202511030223047_API.cs</DependentUpon>
     </Compile>
+    <Compile Include="Migrations\202511031000000_AddFileContentColumn.cs" />
+    <Compile Include="Migrations\202511031000000_AddFileContentColumn.Designer.cs">
+      <DependentUpon>202511031000000_AddFileContentColumn.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\202511031100000_AddErrorLogging.cs" />
+    <Compile Include="Migrations\202511031100000_AddErrorLogging.Designer.cs">
+      <DependentUpon>202511031100000_AddErrorLogging.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\202511031200000_AddSourceLocationToErrorLog.cs" />
+    <Compile Include="Migrations\202511031200000_AddSourceLocationToErrorLog.Designer.cs">
+      <DependentUpon>202511031200000_AddSourceLocationToErrorLog.cs</DependentUpon>
+    </Compile>
     <Compile Include="Migrations\Configuration.cs" />
     <Compile Include="Models\ApiToken.cs" />
     <Compile Include="Models\Application.cs" />
@@ -164,6 +178,7 @@
     <Compile Include="Models\SiteSettings.cs" />
     <Compile Include="Models\Theme.cs" />
     <Compile Include="Models\User.cs" />
+    <Compile Include="Models\ErrorLog.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Services\ADSyncService.cs" />
     <Compile Include="Services\ApiTokenService.cs" />
@@ -171,6 +186,7 @@
     <Compile Include="Services\NotificationService.cs" />
     <Compile Include="Services\RoleService.cs" />
     <Compile Include="Services\ThemeService.cs" />
+    <Compile Include="Services\ErrorLoggingService.cs" />
     <Compile Include="Settings.cs" />
     <Compile Include="ViewModels\SiteSettingsViewModel.cs" />
     <Compile Include="ViewModels\ThemeViewModel.cs" />
@@ -250,6 +266,11 @@
     <Content Include="Views\Theme\SiteSettings.cshtml" />
     <Content Include="Views\Notifications\Details.cshtml" />
     <Content Include="Views\Applications\Edit.cshtml" />
+    <Content Include="Views\Error\Index.cshtml" />
+    <Content Include="Views\Error\NotFound.cshtml" />
+    <Content Include="Views\Error\Unauthorized.cshtml" />
+    <Content Include="Views\ErrorLogs\Index.cshtml" />
+    <Content Include="Views\ErrorLogs\Details.cshtml" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="App_Data\" />
@@ -264,6 +285,15 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Migrations\202511030223047_API.resx">
       <DependentUpon>202511030223047_API.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202511031000000_AddFileContentColumn.resx">
+      <DependentUpon>202511031000000_AddFileContentColumn.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202511031100000_AddErrorLogging.resx">
+      <DependentUpon>202511031100000_AddErrorLogging.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202511031200000_AddSourceLocationToErrorLog.resx">
+      <DependentUpon>202511031200000_AddSourceLocationToErrorLog.cs</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>

@@ -5,6 +5,22 @@
     ViewBag.Title = "My Files";
 }
 
+@functions {
+    public static string FormatFileSize(long bytes)
+    {
+        if (bytes == 0) return "0 B";
+        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+        int order = 0;
+        double size = bytes;
+        while (size >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            size = size / 1024;
+        }
+        return String.Format("{0:0.##} {1}", size, sizes[order]);
+    }
+}
+
 <div class="page-header d-flex justify-content-between align-items-center">
     <div>
         <h1><i class="bi bi-folder"></i> My Files</h1>
@@ -72,7 +88,7 @@
                                         <small class="text-muted">@file.Description</small>
                                     }
                                 </td>
-                                <td>@String.Format("{0:0.00} MB", file.FileSize / 1048576.0)</td>
+                                <td>@FormatFileSize(file.FileSize)</td>
                                 <td>@file.UploadedDate.ToString("MMM dd, yyyy HH:mm")</td>
                                 <td><span class="badge bg-info">@file.DownloadCount</span></td>
                                 <td class="table-actions">
@@ -222,19 +238,44 @@
         }
 
         function deleteFile(fileId, fileName) {
-            if (!confirm('Are you sure you want to delete "' + fileName + '"?\n\nThis action cannot be undone. All users who have access to this file will be notified.')) {
-                return;
-            }
-
-            $.post('@Url.Action("Delete")', { id: fileId }, function (data) {
-                if (data.success) {
-                    alert(data.message);
-                    location.reload();
-                } else {
-                    alert('Error: ' + data.message);
+            Swal.fire({
+                title: 'Are you sure?',
+                html: 'Do you want to delete "<strong>' + fileName + '</strong>"?<br><br>This action cannot be undone. All users who have access to this file will be notified.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, delete it!',
+                cancelButtonText: 'Cancel'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.post('@Url.Action("Delete")', { id: fileId }, function (data) {
+                        if (data.success) {
+                            Swal.fire({
+                                title: 'Deleted!',
+                                text: data.message,
+                                icon: 'success',
+                                confirmButtonColor: '#0d6efd'
+                            }).then(() => {
+                                location.reload();
+                            });
+                        } else {
+                            Swal.fire({
+                                title: 'Error!',
+                                text: data.message,
+                                icon: 'error',
+                                confirmButtonColor: '#0d6efd'
+                            });
+                        }
+                    }).fail(function (xhr, status, error) {
+                        Swal.fire({
+                            title: 'Error!',
+                            text: 'Error deleting file: ' + error,
+                            icon: 'error',
+                            confirmButtonColor: '#0d6efd'
+                        });
+                    });
                 }
-            }).fail(function (xhr, status, error) {
-                alert('Error deleting file: ' + error);
             });
         }
     </script>

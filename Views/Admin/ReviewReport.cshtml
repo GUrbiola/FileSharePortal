@@ -112,7 +112,7 @@
                     <a href="@Url.Action("Download", "Files", new { id = Model.FileId })" class="btn btn-outline-info">
                         <i class="bi bi-download"></i> Download File
                     </a>
-                    <button type="button" class="btn btn-outline-danger" onclick="if(confirm('Delete this file?')) deleteFile(@Model.FileId)">
+                    <button type="button" class="btn btn-outline-danger" onclick="deleteFile(@Model.FileId)">
                         <i class="bi bi-trash"></i> Delete File
                     </button>
                 </div>
@@ -124,10 +124,43 @@
 @section scripts {
     <script>
         function deleteFile(fileId) {
-            $.post('@Url.Action("DeleteFile", "Admin")', { fileId: fileId }, function (data) {
-                if (data.success) {
-                    alert('File deleted successfully');
-                    window.location.href = '@Url.Action("Reports")';
+            Swal.fire({
+                title: 'Are you sure?',
+                text: 'Delete this file?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, delete it!',
+                cancelButtonText: 'Cancel'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.post('@Url.Action("DeleteFile", "Admin")', { fileId: fileId }, function (data) {
+                        if (data.success) {
+                            Swal.fire({
+                                title: 'Deleted!',
+                                text: 'File deleted successfully',
+                                icon: 'success',
+                                confirmButtonColor: '#0d6efd'
+                            }).then(() => {
+                                window.location.href = '@Url.Action("Reports")';
+                            });
+                        } else {
+                            Swal.fire({
+                                title: 'Error!',
+                                text: 'Failed to delete file',
+                                icon: 'error',
+                                confirmButtonColor: '#0d6efd'
+                            });
+                        }
+                    }).fail(function () {
+                        Swal.fire({
+                            title: 'Error!',
+                            text: 'An error occurred while deleting the file',
+                            icon: 'error',
+                            confirmButtonColor: '#0d6efd'
+                        });
+                    });
                 }
             });
         }

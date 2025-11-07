@@ -53,19 +53,50 @@
         });
 
         function deleteRole(roleId, roleName) {
-            if (!confirm('Are you sure you want to delete the role "' + roleName + '"?\n\nThis will:\n- Remove all users from this role\n- Remove all distribution lists from this role\n- Remove this role from all file shares\n\nThis action cannot be undone.')) {
-                return;
-            }
-
-            $.post('@Url.Action("DeleteRole")', { roleId: roleId }, function (data) {
-                if (data.success) {
-                    alert(data.message);
-                    location.reload();
-                } else {
-                    alert('Error: ' + data.message);
+            Swal.fire({
+                title: 'Are you sure?',
+                html: 'Do you want to delete the role "<strong>' + roleName + '</strong>"?<br><br>' +
+                      'This will:<br>' +
+                      '<ul style="text-align: left; display: inline-block;">' +
+                      '<li>Remove all users from this role</li>' +
+                      '<li>Remove all distribution lists from this role</li>' +
+                      '<li>Remove this role from all file shares</li>' +
+                      '</ul><strong>This action cannot be undone.</strong>',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, delete it!',
+                cancelButtonText: 'Cancel'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.post('@Url.Action("DeleteRole")', { roleId: roleId }, function (data) {
+                        if (data.success) {
+                            Swal.fire({
+                                title: 'Deleted!',
+                                text: data.message,
+                                icon: 'success',
+                                confirmButtonColor: '#0d6efd'
+                            }).then(() => {
+                                location.reload();
+                            });
+                        } else {
+                            Swal.fire({
+                                title: 'Error!',
+                                text: data.message,
+                                icon: 'error',
+                                confirmButtonColor: '#0d6efd'
+                            });
+                        }
+                    }).fail(function (xhr, status, error) {
+                        Swal.fire({
+                            title: 'Error!',
+                            text: 'Error deleting role: ' + error,
+                            icon: 'error',
+                            confirmButtonColor: '#0d6efd'
+                        });
+                    });
                 }
-            }).fail(function (xhr, status, error) {
-                alert('Error deleting role: ' + error);
             });
         }
     </script>

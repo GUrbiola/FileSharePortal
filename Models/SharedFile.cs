@@ -14,15 +14,44 @@ namespace FileSharePortal.Models
         [StringLength(500)]
         public string FileName { get; set; }
 
-        [Required]
         [StringLength(1000)]
         public string FilePath { get; set; }
+
+        // Store file content in database
+        private byte[] _FileContent;
+        public byte[] FileContent 
+        { 
+            get
+            {
+                return _FileContent;
+            }
+            set
+            {
+                if (value != null)
+                    _FileSize = value.Length;
+                else
+                    _FileSize = 0;
+                _FileContent = value;
+            }
+        }
 
         [Required]
         [StringLength(200)]
         public string ContentType { get; set; }
 
-        public long FileSize { get; set; }
+        private long _FileSize;
+        public long FileSize
+        {
+            get
+            {
+                return _FileSize;
+            }
+            set
+            {
+                //ignore setter calls that try to set FileSize directly
+                //_FileSize = value;
+            }
+        }
 
         [Required]
         public int UploadedByUserId { get; set; }

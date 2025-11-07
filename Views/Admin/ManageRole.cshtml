@@ -109,20 +109,44 @@
                     if (data.success) {
                         location.reload();
                     } else {
-                        alert(data.message || 'Error adding user');
+                        Swal.fire({
+                            title: 'Error!',
+                            text: data.message || 'Error adding user',
+                            icon: 'error',
+                            confirmButtonColor: '#0d6efd'
+                        });
                     }
                 });
             }
         }
 
         function removeUser(userId) {
-            if (confirm('Remove this user from the role?')) {
-                $.post('@Url.Action("RemoveUserFromRole")', { roleId: @role.RoleId, userId: userId }, function (data) {
-                    if (data.success) {
-                        $('#roleUser_' + userId).remove();
-                    }
-                });
-            }
+            Swal.fire({
+                title: 'Are you sure?',
+                text: 'Remove this user from the role?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, remove!',
+                cancelButtonText: 'Cancel'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.post('@Url.Action("RemoveUserFromRole")', { roleId: @role.RoleId, userId: userId }, function (data) {
+                        if (data.success) {
+                            $('#roleUser_' + userId).remove();
+                            Swal.fire({
+                                title: 'Removed!',
+                                text: 'User has been removed from the role.',
+                                icon: 'success',
+                                confirmButtonColor: '#0d6efd',
+                                timer: 2000,
+                                showConfirmButton: false
+                            });
+                        }
+                    });
+                }
+            });
         }
 
         function addDistributionList() {
@@ -132,20 +156,44 @@
                     if (data.success) {
                         location.reload();
                     } else {
-                        alert(data.message || 'Error adding distribution list');
+                        Swal.fire({
+                            title: 'Error!',
+                            text: data.message || 'Error adding distribution list',
+                            icon: 'error',
+                            confirmButtonColor: '#0d6efd'
+                        });
                     }
                 });
             }
         }
 
         function removeDistributionList(dlId) {
-            if (confirm('Remove this distribution list from the role?')) {
-                $.post('@Url.Action("RemoveDistributionListFromRole")', { roleId: @role.RoleId, distributionListId: dlId }, function (data) {
-                    if (data.success) {
-                        $('#roleDL_' + dlId).remove();
-                    }
-                });
-            }
+            Swal.fire({
+                title: 'Are you sure?',
+                text: 'Remove this distribution list from the role?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, remove!',
+                cancelButtonText: 'Cancel'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.post('@Url.Action("RemoveDistributionListFromRole")', { roleId: @role.RoleId, distributionListId: dlId }, function (data) {
+                        if (data.success) {
+                            $('#roleDL_' + dlId).remove();
+                            Swal.fire({
+                                title: 'Removed!',
+                                text: 'Distribution list has been removed from the role.',
+                                icon: 'success',
+                                confirmButtonColor: '#0d6efd',
+                                timer: 2000,
+                                showConfirmButton: false
+                            });
+                        }
+                    });
+                }
+            });
         }
     </script>
 }

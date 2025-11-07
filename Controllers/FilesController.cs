@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Data.Entity;
 using System.IO;
 using System.Linq;
 using System.Web;
@@ -35,6 +36,15 @@ namespace FileSharePortal.Controllers
                 .OrderByDescending(f => f.UploadedDate)
                 .ToList();
 
+            // Update FileSize if it's 0 but we have content
+            foreach (var file in files)
+            {
+                if (file.FileSize == 0 && file.FileContent != null && file.FileContent.Length > 0)
+                {
+                    file.FileSize = file.FileContent.Length;
+                }
+            }
+
             return View(files);
         }
 
@@ -48,6 +58,7 @@ namespace FileSharePortal.Controllers
             // Get files shared directly with the user
             var directShares = _context.FileShares
                 .Where(fs => fs.SharedWithUserId == currentUser.UserId && !fs.SharedFile.IsDeleted)
+                .Include(fs => fs.SharedFile.UploadedBy)
                 .Select(fs => fs.SharedFile)
                 .ToList();
 
@@ -59,6 +70,7 @@ namespace FileSharePortal.Controllers
             // Get files shared through roles (including distribution list memberships)
             var roleShares = _context.FileShares
                 .Where(fs => fs.SharedWithRoleId.HasValue && !fs.SharedFile.IsDeleted)
+                .Include(fs => fs.SharedFile.UploadedBy)
                 .ToList();
 
             foreach (var roleShare in roleShares)
@@ -71,6 +83,15 @@ namespace FileSharePortal.Controllers
             }
 
             var allFiles = sharedFiles.OrderByDescending(f => f.UploadedDate).ToList();
+
+            // Update FileSize if it's 0 but we have content
+            foreach (var file in allFiles)
+            {
+                if (file.FileSize == 0 && file.FileContent != null && file.FileContent.Length > 0)
+                {
+                    file.FileSize = file.FileContent.Length;
+                }
+            }
 
             return View(allFiles);
         }
@@ -97,22 +118,20 @@ namespace FileSharePortal.Controllers
 
             try
             {
-                var uploadPath = Server.MapPath("~/App_Data/Uploads");
-                if (!Directory.Exists(uploadPath))
-                {
-                    Directory.CreateDirectory(uploadPath);
-                }
-
                 var fileName = Path.GetFileName(file.FileName);
-                var uniqueFileName = $"{Guid.NewGuid()}_{fileName}";
-                var filePath = Path.Combine(uploadPath, uniqueFileName);
 
-                file.SaveAs(filePath);
+                // Read file content into byte array
+                byte[] fileContent;
+                using (var binaryReader = new BinaryReader(file.InputStream))
+                {
+                    fileContent = binaryReader.ReadBytes(file.ContentLength);
+                }
 
                 var sharedFile = new SharedFile
                 {
                     FileName = fileName,
-                    FilePath = uniqueFileName,
+                    FilePath = null, // No longer storing on file system
+                    FileContent = fileContent, // Store content in database
                     ContentType = file.ContentType,
                     FileSize = file.ContentLength,
                     UploadedByUserId = currentUser.UserId,
@@ -157,6 +176,11 @@ namespace FileSharePortal.Controllers
             var sharedRoleIds = existingShares.Where(fs => fs.SharedWithRoleId.HasValue)
                                               .Select(fs => fs.SharedWithRoleId.Value)
                                               .ToList();
+
+            if (file.FileSize == 0 && file.FileContent != null && file.FileContent.Length > 0)
+            {
+                file.FileSize = file.FileContent.Length;
+            }
 
             ViewBag.File = file;
             ViewBag.Users = _context.Users.Where(u => u.IsActive && u.UserId != currentUser.UserId).ToList();
@@ -329,29 +353,41 @@ namespace FileSharePortal.Controllers
             var currentUser = _authService.GetCurrentUser();
             ViewBag.CurrentUser = currentUser;
 
-            var file = _context.SharedFiles.Find(id);
+            var file = _context.SharedFiles.Include(f => f.UploadedBy).FirstOrDefault(f => f.FileId == id);
             if (file == null || file.IsDeleted)
             {
-                return HttpNotFound();
+                throw new HttpException(404, $"File was not found({id})!");
             }
 
             // Check if user has access (including through roles and distribution lists)
             if (!HasUserAccessToFile(id, currentUser.UserId))
             {
-                return new HttpUnauthorizedResult();
+                throw new HttpException(403, $"Access denied({id})!");
             }
 
             ViewBag.SharedWith = _context.FileShares
                 .Where(fs => fs.FileId == id)
+                .Include(fs => fs.SharedWithUser)
+                .Include(fs => fs.SharedWithRole)
                 .ToList();
 
             // Get all users with access (for detailed view)
             var usersWithAccess = GetUsersWithAccess(id);
+
+            // Add file owner to the list
+            usersWithAccess.Add(file.UploadedByUserId);
+
             var usersWithAccessDetails = _context.Users
                 .Where(u => usersWithAccess.Contains(u.UserId))
                 .Select(u => new { u.UserId, u.FullName, u.Email })
                 .ToList();
             ViewBag.UsersWithAccess = usersWithAccessDetails;
+
+            // Update FileSize if it's 0 but we have content
+            if (file.FileSize == 0 && file.FileContent != null && file.FileContent.Length > 0)
+            {
+                file.FileSize = file.FileContent.Length;
+            }
 
             // Check if file is previewable
             var extension = System.IO.Path.GetExtension(file.FileName)?.ToLower();
@@ -371,22 +407,22 @@ namespace FileSharePortal.Controllers
 
             if (file == null || file.IsDeleted)
             {
-                return HttpNotFound();
+                throw new HttpException(404, $"File was not found({id})!");
             }
 
             // Check if user has access (including through roles and distribution lists)
             if (!HasUserAccessToFile(id, currentUser.UserId))
             {
-                return new HttpUnauthorizedResult();
+                throw new HttpException(403, $"Access denied({id})!");
             }
 
-            var filePath = Path.Combine(Server.MapPath("~/App_Data/Uploads"), file.FilePath);
-            if (!System.IO.File.Exists(filePath))
+            // Check if file content exists in database
+            if (file.FileContent == null || file.FileContent.Length == 0)
             {
-                return HttpNotFound("File not found on disk.");
+                return HttpNotFound("File content not found.");
             }
 
-            return File(filePath, file.ContentType);
+            return File(file.FileContent, file.ContentType);
         }
 
         public ActionResult Download(int id)
@@ -396,26 +432,26 @@ namespace FileSharePortal.Controllers
 
             if (file == null || file.IsDeleted)
             {
-                return HttpNotFound();
+                throw new HttpException(404, $"File was not found({id})!");
             }
 
             // Check if user has access (including through roles and distribution lists)
-            if (!HasUserAccessToFile(id, currentUser.UserId, requireDownloadPermission: true))
+            if (!HasUserAccessToFile(id, currentUser.UserId))
             {
-                return new HttpUnauthorizedResult();
+                throw new HttpException(403, $"Access denied({id})!");
             }
 
-            var filePath = Path.Combine(Server.MapPath("~/App_Data/Uploads"), file.FilePath);
-            if (!System.IO.File.Exists(filePath))
+            // Check if file content exists in database
+            if (file.FileContent == null || file.FileContent.Length == 0)
             {
-                return HttpNotFound("File not found on disk.");
+                return HttpNotFound("File content not found.");
             }
 
             // Increment download count
             file.DownloadCount++;
             _context.SaveChanges();
 
-            return File(filePath, file.ContentType, file.FileName);
+            return File(file.FileContent, file.ContentType, file.FileName);
         }
 
         [HttpGet]
@@ -480,6 +516,10 @@ namespace FileSharePortal.Controllers
                 file.IsDeleted = true;
                 file.DeletedDate = DateTime.Now;
                 file.DeletedByUserId = currentUser.UserId;
+
+                // Clear file content from database to free up space
+                file.FileContent = null;
+
                 _context.SaveChanges();
 
                 // Get all users who had access before deletion

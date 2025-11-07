@@ -25,6 +25,7 @@ namespace FileSharePortal.Data
         public DbSet<ApiToken> ApiTokens { get; set; }
         public DbSet<Theme> Themes { get; set; }
         public DbSet<SiteSettings> SiteSettings { get; set; }
+        public DbSet<ErrorLog> ErrorLogs { get; set; }
 
         protected override void OnModelCreating(DbModelBuilder modelBuilder)
         {

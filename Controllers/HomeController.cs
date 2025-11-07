@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Web.Mvc;
 using FileSharePortal.Data;
+using FileSharePortal.Models;
 using FileSharePortal.Services;
 
 namespace FileSharePortal.Controllers
@@ -28,28 +29,35 @@ namespace FileSharePortal.Controllers
             var recentFiles = _context.FileShares
                 .Where(fs => fs.SharedWithUserId == currentUser.UserId && !fs.SharedFile.IsDeleted)
                 .OrderByDescending(fs => fs.SharedDate)
-                .Take(5)
+                //.Take(5)
                 .Select(fs => fs.SharedFile)
                 .ToList();
-
-            ViewBag.RecentFiles = recentFiles;
-
-            // Get user's uploaded files count
-            ViewBag.UploadedFilesCount = _context.SharedFiles
-                .Count(f => f.UploadedByUserId == currentUser.UserId && !f.IsDeleted);
-
-            // Get shared files count
-            int sharedWithMe = _context.FileShares
-                .Count(fs => fs.SharedWithUserId == currentUser.UserId && !fs.SharedFile.IsDeleted);
-            int sharedWithMyRole = _context.RoleUsers
+            
+            var recentRoleFiles = _context.RoleUsers
                 .Where(ru => ru.UserId == currentUser.UserId)
                 .Join(_context.FileShares,
                       ru => ru.RoleId,
                       fs => fs.SharedWithRoleId,
                       (ru, fs) => fs.SharedFile)
-                .Count(f => !f.IsDeleted);  
+                .Where(f => !f.IsDeleted)
+                .OrderByDescending(f => f.UploadedDate)
+                //.Take(5)
+                .ToList();
 
-            ViewBag.SharedFilesCount = sharedWithMe+ sharedWithMyRole;
+            foreach (SharedFile sf in recentRoleFiles)
+            {
+                if(recentFiles.Contains(sf))
+                    continue;
+                recentFiles.Add(sf);
+            }
+
+            ViewBag.RecentFiles = recentFiles.OrderBy(f => f.UploadedDate).Take(5).ToList();
+
+            // Get user's uploaded files count
+            ViewBag.UploadedFilesCount = _context.SharedFiles
+                .Count(f => f.UploadedByUserId == currentUser.UserId && !f.IsDeleted);
+
+            ViewBag.SharedFilesCount = recentFiles.Count;
 
             return View();
         }

@@ -11,7 +11,8 @@ namespace FileSharePortal.Models
         FileDeleted,
         RoleAssigned,
         General,
-        ApplicationAlert
+        ApplicationAlert,
+        Error
     }
 
     public class Notification

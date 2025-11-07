@@ -185,76 +185,131 @@
 
                 if (data.success) {
                     // Show detailed success message
-                    var message = data.message + '\n\n';
-                    message += 'Details:\n';
-                    message += '- Total AD Users: ' + data.totalADUsers + '\n';
-                    message += '- Users Added: ' + data.usersAdded + '\n';
-                    message += '- Users Updated: ' + data.usersUpdated + '\n';
-                    message += '- Users Reactivated: ' + data.usersReactivated + '\n';
-                    message += '- Users Disabled: ' + data.usersDisabled;
+                    var message = '<strong>' + data.message + '</strong><br><br>';
+                    message += '<strong>Details:</strong><br>';
+                    message += '<ul style="text-align: left; display: inline-block; margin: 0;">';
+                    message += '<li>Total AD Users: ' + data.totalADUsers + '</li>';
+                    message += '<li>Users Added: ' + data.usersAdded + '</li>';
+                    message += '<li>Users Updated: ' + data.usersUpdated + '</li>';
+                    message += '<li>Users Reactivated: ' + data.usersReactivated + '</li>';
+                    message += '<li>Users Disabled: ' + data.usersDisabled + '</li>';
+                    message += '</ul>';
 
-                    alert(message);
-
-                    // Reload page to show updated user list
-                    if (data.usersAdded > 0 || data.usersUpdated > 0 || data.usersReactivated > 0 || data.usersDisabled > 0) {
-                        location.reload();
-                    }
+                    Swal.fire({
+                        title: 'Synchronization Complete!',
+                        html: message,
+                        icon: 'success',
+                        confirmButtonColor: '#0d6efd'
+                    }).then(() => {
+                        // Reload page to show updated user list
+                        if (data.usersAdded > 0 || data.usersUpdated > 0 || data.usersReactivated > 0 || data.usersDisabled > 0) {
+                            location.reload();
+                        }
+                    });
                 } else {
-                    alert('Synchronization failed: ' + data.message);
+                    Swal.fire({
+                        title: 'Synchronization Failed!',
+                        text: data.message,
+                        icon: 'error',
+                        confirmButtonColor: '#0d6efd'
+                    });
                 }
             }).fail(function (xhr, status, error) {
                 syncButton.prop('disabled', false);
                 syncButton.html(originalText);
-                alert('Error during synchronization: ' + error);
+                Swal.fire({
+                    title: 'Error!',
+                    text: 'Error during synchronization: ' + error,
+                    icon: 'error',
+                    confirmButtonColor: '#0d6efd'
+                });
             });
         }
 
-        function resetPassword(userId, username) {
-            var newPassword = prompt('Enter new password for user "' + username + '":\n\n(Minimum 6 characters)', '');
+        async function resetPassword(userId, username) {
+            // Step 1: Get new password
+            const { value: newPassword } = await Swal.fire({
+                title: 'Reset Password',
+                html: 'Enter new password for user "<strong>' + username + '</strong>"<br><small>(Minimum 6 characters)</small>',
+                input: 'password',
+                inputPlaceholder: 'Enter new password',
+                showCancelButton: true,
+                confirmButtonColor: '#0d6efd',
+                cancelButtonColor: '#6c757d',
+                inputValidator: (value) => {
+                    if (!value || value.trim() === '') {
+                        return 'Password cannot be empty';
+                    }
+                    if (value.length < 6) {
+                        return 'Password must be at least 6 characters long';
+                    }
+                }
+            });
 
-            if (newPassword === null) {
-                // User cancelled
-                return;
-            }
+            if (!newPassword) return;
 
-            if (newPassword.trim() === '') {
-                alert('Password cannot be empty');
-                return;
-            }
+            // Step 2: Confirm password
+            const { value: confirmPassword } = await Swal.fire({
+                title: 'Confirm Password',
+                html: 'Confirm new password for user "<strong>' + username + '</strong>"',
+                input: 'password',
+                inputPlaceholder: 'Confirm new password',
+                showCancelButton: true,
+                confirmButtonColor: '#0d6efd',
+                cancelButtonColor: '#6c757d'
+            });
 
-            if (newPassword.length < 6) {
-                alert('Password must be at least 6 characters long');
-                return;
-            }
-
-            // Confirm password
-            var confirmPassword = prompt('Confirm new password for user "' + username + '":', '');
-
-            if (confirmPassword === null) {
-                // User cancelled
-                return;
-            }
+            if (!confirmPassword) return;
 
             if (newPassword !== confirmPassword) {
-                alert('Passwords do not match. Please try again.');
+                Swal.fire({
+                    title: 'Error!',
+                    text: 'Passwords do not match. Please try again.',
+                    icon: 'error',
+                    confirmButtonColor: '#0d6efd'
+                });
                 return;
             }
 
-            // Final confirmation
-            if (!confirm('Are you sure you want to reset the password for user "' + username + '"?\n\nThe user will be notified of this change.')) {
-                return;
-            }
-
-            // Send password reset request
-            $.post('@Url.Action("ResetPassword")', { userId: userId, newPassword: newPassword }, function (data) {
-                if (data.success) {
-                    alert(data.message);
-                } else {
-                    alert('Error: ' + data.message);
-                }
-            }).fail(function (xhr, status, error) {
-                alert('Error resetting password: ' + error);
+            // Step 3: Final confirmation
+            const result = await Swal.fire({
+                title: 'Are you sure?',
+                html: 'Reset password for user "<strong>' + username + '</strong>"?<br><br>The user will be notified of this change.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#0d6efd',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, reset it!',
+                cancelButtonText: 'Cancel'
             });
+
+            if (result.isConfirmed) {
+                // Send password reset request
+                $.post('@Url.Action("ResetPassword")', { userId: userId, newPassword: newPassword }, function (data) {
+                    if (data.success) {
+                        Swal.fire({
+                            title: 'Success!',
+                            text: data.message,
+                            icon: 'success',
+                            confirmButtonColor: '#0d6efd'
+                        });
+                    } else {
+                        Swal.fire({
+                            title: 'Error!',
+                            text: data.message,
+                            icon: 'error',
+                            confirmButtonColor: '#0d6efd'
+                        });
+                    }
+                }).fail(function (xhr, status, error) {
+                    Swal.fire({
+                        title: 'Error!',
+                        text: 'Error resetting password: ' + error,
+                        icon: 'error',
+                        confirmButtonColor: '#0d6efd'
+                    });
+                });
+            }
         }
 
         function filterTable() {

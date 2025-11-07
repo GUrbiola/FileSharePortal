@@ -6,6 +6,23 @@
     var recentFiles = ViewBag.RecentFiles as List<FileSharePortal.Models.SharedFile>;
 }
 
+@functions {
+    public static string FormatFileSize(long bytes)
+    {
+        if (bytes == 0) return "0 B";
+        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+        int order = 0;
+        double size = bytes;
+        while (size >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            size = size / 1024;
+        }
+        return String.Format("{0:0.##} {1}", size, sizes[order]);
+    }
+}
+
+
 <div class="page-header">
     <h1>Welcome back, @currentUser.FullName!</h1>
     <p class="text-muted">Here's what's happening with your files</p>
@@ -56,7 +73,7 @@
                                     <div class="text-end">
                                         <small class="text-muted">@file.UploadedDate.ToString("MMM dd, yyyy")</small>
                                         <br />
-                                        <span class="badge bg-primary">@String.Format("{0:0.00} MB", file.FileSize / 1048576.0)</span>
+                                        <span class="badge bg-primary">@FormatFileSize(file.FileSize)</span>
                                     </div>
                                 </div>
                             </a>
@@ -87,7 +104,7 @@
                     <a href="@Url.Action("SharedWithMe", "Files")" class="btn btn-outline-primary">
                         <i class="bi bi-share"></i> Shared With Me
                     </a>
-                    @if(Settings.ShowNotificationsSection)
+                    @if (Settings.ShowNotificationsSection)
                     {
                         <a href="@Url.Action("Index", "Notifications")" class="btn btn-outline-primary">
                             <i class="bi bi-bell"></i> Notifications

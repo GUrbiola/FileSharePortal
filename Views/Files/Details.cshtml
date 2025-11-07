@@ -7,6 +7,22 @@
     var sharedWith = ViewBag.SharedWith as List<FileSharePortal.Models.FileShare>;
 }
 
+@functions {
+    public static string FormatFileSize(long bytes)
+    {
+        if (bytes == 0) return "0 B";
+        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+        int order = 0;
+        double size = bytes;
+        while (size >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            size = size / 1024;
+        }
+        return String.Format("{0:0.##} {1}", size, sizes[order]);
+    }
+}
+
 <div class="page-header">
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
@@ -69,7 +85,7 @@
                 </div>
                 <div class="row mb-3">
                     <div class="col-sm-4"><strong>File Size:</strong></div>
-                    <div class="col-sm-8">@String.Format("{0:0.00} MB", Model.FileSize / 1048576.0)</div>
+                    <div class="col-sm-8">@FormatFileSize(Model.FileSize)</div>
                 </div>
                 <div class="row mb-3">
                     <div class="col-sm-4"><strong>Content Type:</strong></div>
@@ -215,11 +231,50 @@
                 </div>
             </div>
         </div>
+
+        @{
+            var usersWithAccessSidebar = ViewBag.UsersWithAccess as List<dynamic>;
+        }
+
+        <div class="card mt-3" style="display:none;">
+            <div class="card-header">
+                <i class="bi bi-people-fill"></i> File Access
+            </div>
+            <div class="card-body">
+                @if (usersWithAccessSidebar != null && usersWithAccessSidebar.Any())
+                {
+                    <div class="mb-3">
+                        <small class="text-muted">Total Users with Access</small>
+                        <h3 class="mb-0">@usersWithAccessSidebar.Count</h3>
+                    </div>
+                    <hr />
+                    <div style="max-height: 300px; overflow-y: auto;">
+                        @foreach (var user in usersWithAccessSidebar)
+                        {
+                            <div class="d-flex align-items-start mb-3">
+                                <i class="bi bi-person-circle me-2 text-primary" style="font-size: 1.5rem;"></i>
+                                <div style="flex: 1; min-width: 0;">
+                                    <div class="fw-bold text-truncate">@user.FullName</div>
+                                    <small class="text-muted text-truncate d-block">@user.Email</small>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center text-muted py-3">
+                        <i class="bi bi-lock" style="font-size: 2rem;"></i>
+                        <p class="mb-0 mt-2">Not shared with anyone</p>
+                    </div>
+                }
+            </div>
+        </div>
     </div>
 </div>
 @section scripts {
-    <script>$(document).ready(function ()
-        {
+    <script>
+    $(document).ready(function () {
             $('.sidebar-link').removeClass('active');
             $('#FilesLink').addClass('active');
         });</script>

@@ -1,0 +1,334 @@
+@using System.Web.Optimization;
+
+@model List<FileSharePortal.Models.ErrorLog>
+@{
+    ViewBag.Title = "Error Logs";
+}
+
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h1><i class="bi bi-bug"></i> Error Logs</h1>
+        <p class="text-muted">System error monitoring and management</p>
+    </div>
+    <div>
+        <button type="button" class="btn btn-danger" onclick="deleteAllLogs('resolved')">
+            <i class="bi bi-trash"></i> Delete Resolved
+        </button>
+        <button type="button" class="btn btn-outline-danger" onclick="deleteAllLogs('old')">
+            <i class="bi bi-trash"></i> Delete Old (30+ days)
+        </button>
+        <button type="button" class="btn btn-outline-danger" onclick="deleteAllLogs('all')">
+            <i class="bi bi-trash"></i> Delete All Error Logs !!
+        </button>
+
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-8">
+                <div class="btn-group" role="group">
+                    <a href="@Url.Action("Index", new { filter = "all" })" class="btn @(ViewBag.Filter == "all" ? "btn-primary" : "btn-outline-primary")">
+                        All (@ViewBag.TotalCount)
+                    </a>
+                    <a href="@Url.Action("Index", new { filter = "unresolved" })" class="btn @(ViewBag.Filter == "unresolved" ? "btn-primary" : "btn-outline-primary")">
+                        Unresolved
+                    </a>
+                    <a href="@Url.Action("Index", new { filter = "resolved" })" class="btn @(ViewBag.Filter == "resolved" ? "btn-primary" : "btn-outline-primary")">
+                        Resolved
+                    </a>
+                    <a href="@Url.Action("Index", new { filter = "today" })" class="btn @(ViewBag.Filter == "today" ? "btn-primary" : "btn-outline-primary")">
+                        Today
+                    </a>
+                    <a href="@Url.Action("Index", new { filter = "week" })" class="btn @(ViewBag.Filter == "week" ? "btn-primary" : "btn-outline-primary")">
+                        Last 7 Days
+                    </a>
+                </div>
+            </div>
+            <div class="col-md-4 text-end">
+                <small class="text-muted">Total: @ViewBag.TotalCount errors</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (Model.Any())
+{
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Occurred</th>
+                            <th>Error Message</th>
+                            <th>Type</th>
+                            <th>Location</th>
+                            <th>User</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var error in Model)
+                        {
+                            <tr id="error_@error.ErrorLogId" class="@(error.IsResolved ? "table-secondary" : "")">
+                                <td><strong>#@error.ErrorLogId</strong></td>
+                                <td>
+                                    <small>@error.OccurredAt.ToString("yyyy-MM-dd")</small><br/>
+                                    <small class="text-muted">@error.OccurredAt.ToString("HH:mm:ss")</small>
+                                </td>
+                                <td>
+                                    <div style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                        @error.ErrorMessage
+                                    </div>
+                                    @if (!string.IsNullOrEmpty(error.RequestUrl))
+                                    {
+                                        <small class="text-muted">
+                                            <i class="bi bi-link-45deg"></i>
+                                            <span style="max-width: 250px; display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle;">
+                                                @error.RequestUrl
+                                            </span>
+                                        </small>
+                                    }
+                                </td>
+                                <td>
+                                    <small class="badge bg-danger">
+                                        @(error.ExceptionType != null ? error.ExceptionType.Split('.').LastOrDefault() : "Unknown")
+                                    </small>
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(error.ControllerName))
+                                    {
+                                        <small>@error.ControllerName/@error.ActionName</small>
+                                    }
+                                    @if (!string.IsNullOrEmpty(error.SourceFile))
+                                    {
+                                        <br/>
+                                        <small class="text-muted">
+                                            <i class="bi bi-file-code"></i>
+                                            @System.IO.Path.GetFileName(error.SourceFile):@error.LineNumber
+                                        </small>
+                                    }
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(error.Username))
+                                    {
+                                        <small>@error.Username</small>
+                                    }
+                                    else
+                                    {
+                                        <small class="text-muted">Anonymous</small>
+                                    }
+                                </td>
+                                <td>
+                                    @if (error.IsResolved)
+                                    {
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-check-circle"></i> Resolved
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-warning">
+                                            <i class="bi bi-exclamation-circle"></i> Open
+                                        </span>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="@Url.Action("Details", new { id = error.ErrorLogId })" class="btn btn-outline-primary" title="View Details">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        @if (!error.IsResolved)
+                                        {
+                                            <button type="button" class="btn btn-outline-success" onclick="resolveError(@error.ErrorLogId)" title="Mark as Resolved">
+                                                <i class="bi bi-check"></i>
+                                            </button>
+                                        }
+                                        <button type="button" class="btn btn-outline-danger" onclick="deleteError(@error.ErrorLogId)" title="Delete">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @if (ViewBag.TotalPages > 1)
+            {
+                <nav aria-label="Error logs pagination" class="mt-3">
+                    <ul class="pagination justify-content-center">
+                        @if (ViewBag.CurrentPage > 1)
+                        {
+                            <li class="page-item">
+                                <a class="page-link" href="@Url.Action("Index", new { filter = ViewBag.Filter, page = ViewBag.CurrentPage - 1 })">Previous</a>
+                            </li>
+                        }
+
+                        @for (int i = 1; i <= ViewBag.TotalPages; i++)
+                        {
+                            <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
+                                <a class="page-link" href="@Url.Action("Index", new { filter = ViewBag.Filter, page = i })">@i</a>
+                            </li>
+                        }
+
+                        @if (ViewBag.CurrentPage < ViewBag.TotalPages)
+                        {
+                            <li class="page-item">
+                                <a class="page-link" href="@Url.Action("Index", new { filter = ViewBag.Filter, page = ViewBag.CurrentPage + 1 })">Next</a>
+                            </li>
+                        }
+                    </ul>
+                </nav>
+            }
+        </div>
+    </div>
+}
+else
+{
+    <div class="text-center py-5">
+        <i class="bi bi-check-circle text-success" style="font-size: 4rem;"></i>
+        <h3 class="mt-3">No errors found</h3>
+        <p class="text-muted">There are no error logs matching your filter criteria.</p>
+    </div>
+}
+
+@section scripts {
+    <script>
+        $(document).ready(function () {
+            $('.sidebar-link').removeClass('active');
+            $('#ErrorLogsLink').addClass('active');
+        });
+
+        async function resolveError(errorId) {
+            const { value: notes } = await Swal.fire({
+                title: 'Resolve Error',
+                html: 'Add resolution notes (optional):',
+                input: 'textarea',
+                inputPlaceholder: 'Describe how this error was resolved...',
+                showCancelButton: true,
+                confirmButtonColor: '#0d6efd',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Mark as Resolved',
+                cancelButtonText: 'Cancel'
+            });
+
+            if (notes !== undefined) {
+                $.post('@Url.Action("Resolve")', { id: errorId, resolutionNotes: notes || '' }, function (data) {
+                    if (data.success) {
+                        Swal.fire({
+                            title: 'Resolved!',
+                            text: data.message,
+                            icon: 'success',
+                            confirmButtonColor: '#0d6efd',
+                            timer: 2000,
+                            showConfirmButton: false
+                        }).then(() => {
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire({
+                            title: 'Error!',
+                            text: data.message,
+                            icon: 'error',
+                            confirmButtonColor: '#0d6efd'
+                        });
+                    }
+                });
+            }
+        }
+
+        function deleteError(errorId) {
+            Swal.fire({
+                title: 'Are you sure?',
+                text: 'This will permanently delete this error log.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, delete it!',
+                cancelButtonText: 'Cancel'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.post('@Url.Action("Delete")', { id: errorId }, function (data) {
+                        if (data.success) {
+                            $('#error_' + errorId).fadeOut(function () {
+                                $(this).remove();
+                            });
+                            Swal.fire({
+                                title: 'Deleted!',
+                                text: data.message,
+                                icon: 'success',
+                                confirmButtonColor: '#0d6efd',
+                                timer: 2000,
+                                showConfirmButton: false
+                            });
+                        } else {
+                            Swal.fire({
+                                title: 'Error!',
+                                text: data.message,
+                                icon: 'error',
+                                confirmButtonColor: '#0d6efd'
+                            });
+                        }
+                    });
+                }
+            });
+        }
+
+        function deleteAllLogs(filter) {
+            var title = '';// filter === 'resolved' ? 'Delete All Resolved Errors?' : 'Delete Old Errors (30+ days)?';
+            var text = ''//filter === 'resolved' ? 'This will permanently delete all resolved error logs.' : 'This will permanently delete all error logs older than 30 days.';
+
+            if (filter === 'resolved') {
+                title = 'Delete All Resolved Errors?';
+                text = 'This will permanently delete all resolved error logs.';
+            } else if (filter === 'old') {
+                title = 'Delete Old Errors (30+ days)?';
+                text = 'This will permanently delete all error logs older than 30 days.';
+            } else if (filter === 'all') {
+                title = 'Delete All Errors ?';
+                text = 'This will permanently delete all error logs.';
+            }
+
+
+            Swal.fire({
+                title: title,
+                text: text,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, delete them!',
+                cancelButtonText: 'Cancel'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.post('@Url.Action("DeleteAll")', { filter: filter }, function (data) {
+                        if (data.success) {
+                            Swal.fire({
+                                title: 'Deleted!',
+                                text: data.message,
+                                icon: 'success',
+                                confirmButtonColor: '#0d6efd'
+                            }).then(() => {
+                                location.reload();
+                            });
+                        } else {
+                            Swal.fire({
+                                title: 'Error!',
+                                text: data.message,
+                                icon: 'error',
+                                confirmButtonColor: '#0d6efd'
+                            });
+                        }
+                    });
+                }
+            });
+        }
+    </script>
+}

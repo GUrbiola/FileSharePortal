@@ -102,41 +102,33 @@ namespace FileSharePortal.Controllers.Api
             try
             {
                 var uploadPath = HttpContext.Current.Server.MapPath("~/App_Data/Uploads");
-                if (!Directory.Exists(uploadPath))
-                {
-                    Directory.CreateDirectory(uploadPath);
-                }
-
-                var provider = new MultipartFormDataStreamProvider(uploadPath);
+                var provider = new MultipartMemoryStreamProvider();
                 await Request.Content.ReadAsMultipartAsync(provider);
 
-                if (provider.FileData.Count == 0)
+                if (provider.Contents.Count == 0)
                 {
                     return BadRequest("No file uploaded");
                 }
 
-                var fileData = provider.FileData[0];
-                var fileName = fileData.Headers.ContentDisposition.FileName.Trim('"');
-                var contentType = fileData.Headers.ContentType.MediaType;
-                var tempFilePath = fileData.LocalFileName;
-                var fileInfo = new FileInfo(tempFilePath);
+                var fileContent = provider.Contents[0];
+                var fileName = fileContent.Headers.ContentDisposition.FileName.Trim('"');
+                var contentType = fileContent.Headers.ContentType.MediaType;
 
-                // Generate unique file name
-                var uniqueFileName = $"{Guid.NewGuid()}_{fileName}";
-                var finalPath = Path.Combine(uploadPath, uniqueFileName);
-
-                // Move temp file to final location
-                File.Move(tempFilePath, finalPath);
+                // Read file content into byte array
+                var fileBytes = await fileContent.ReadAsByteArrayAsync();
 
                 // Get description from form data if provided
-                var description = provider.FormData["description"];
+                var description = provider.Contents.Count > 1
+                    ? await provider.Contents[1].ReadAsStringAsync()
+                    : null;
 
                 var sharedFile = new SharedFile
                 {
                     FileName = fileName,
-                    FilePath = uniqueFileName,
+                    FilePath = null, // No longer storing on file system
+                    FileContent = fileBytes, // Store content in database
                     ContentType = contentType,
-                    FileSize = fileInfo.Length,
+                    FileSize = fileBytes.Length,
                     UploadedByUserId = CurrentUser.UserId,
                     Description = description
                 };
@@ -180,12 +172,10 @@ namespace FileSharePortal.Controllers.Api
                 return Request.CreateResponse(HttpStatusCode.Forbidden, new { error = "Access denied" });
             }
 
-            var uploadPath = HttpContext.Current.Server.MapPath("~/App_Data/Uploads");
-            var filePath = Path.Combine(uploadPath, file.FilePath);
-
-            if (!File.Exists(filePath))
+            // Check if file content exists in database
+            if (file.FileContent == null || file.FileContent.Length == 0)
             {
-                return Request.CreateResponse(HttpStatusCode.NotFound, new { error = "File not found on disk" });
+                return Request.CreateResponse(HttpStatusCode.NotFound, new { error = "File content not found" });
             }
 
             // Increment download count
@@ -193,8 +183,7 @@ namespace FileSharePortal.Controllers.Api
             _context.SaveChanges();
 
             var response = new HttpResponseMessage(HttpStatusCode.OK);
-            var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
-            response.Content = new StreamContent(stream);
+            response.Content = new ByteArrayContent(file.FileContent);
             response.Content.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType);
             response.Content.Headers.ContentDisposition = new ContentDispositionHeaderValue("attachment")
             {
@@ -227,6 +216,10 @@ namespace FileSharePortal.Controllers.Api
 
             file.IsDeleted = true;
             file.DeletedDate = DateTime.Now;
+
+            // Clear file content from database to free up space
+            file.FileContent = null;
+
             _context.SaveChanges();
 
             return Ok(new { message = "File deleted successfully" });

@@ -5,6 +5,22 @@
     ViewBag.Title = "Shared With Me";
 }
 
+@functions {
+    public static string FormatFileSize(long bytes)
+    {
+        if (bytes == 0) return "0 B";
+        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+        int order = 0;
+        double size = bytes;
+        while (size >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            size = size / 1024;
+        }
+        return String.Format("{0:0.##} {1}", size, sizes[order]);
+    }
+}
+
 <div class="page-header">
     <h1><i class="bi bi-share"></i> Files Shared With Me</h1>
     <p class="text-muted">Files that others have shared with you</p>
@@ -73,7 +89,7 @@
                                     }
                                 </td>
                                 <td>@file.UploadedBy.FullName</td>
-                                <td>@String.Format("{0:0.00} MB", file.FileSize / 1048576.0)</td>
+                                <td>@FormatFileSize(file.FileSize)</td>
                                 <td>@file.UploadedDate.ToString("MMM dd, yyyy")</td>
                                 <td class="table-actions">
                                     <a href="@Url.Action("Details", new { id = file.FileId })" class="btn btn-sm btn-outline-primary" title="Details">
