@@ -10,14 +10,59 @@
             <h1><i class="bi bi-bell"></i> Notifications</h1>
             <p class="text-muted">Stay updated with your activities</p>
         </div>
-        <div>
+        <div class="d-flex gap-2 flex-wrap">
             <button type="button" class="btn btn-outline-primary" onclick="markAllAsRead()">
                 <i class="bi bi-check-all"></i> Mark All as Read
             </button>
+            <div class="btn-group">
+                <button type="button" class="btn btn-outline-danger dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-trash"></i> Delete
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#" onclick="deleteReadNotifications(); return false;">
+                        <i class="bi bi-check-circle"></i> Delete All Read
+                    </a></li>
+                    <li><a class="dropdown-item" href="#" onclick="deleteAllNotifications(); return false;">
+                        <i class="bi bi-trash"></i> Delete All
+                    </a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#deleteByCountModal">
+                        <i class="bi bi-hash"></i> Delete Oldest N...
+                    </a></li>
+                    <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#deleteByDateModal">
+                        <i class="bi bi-calendar"></i> Delete Older Than...
+                    </a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-3" id="bulkActionsRow" style="display: none;">
+        <div class="col-12">
+            <div class="alert alert-info d-flex justify-content-between align-items-center">
+                <span><strong id="selectedCount">0</strong> notification(s) selected</span>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-danger btn-sm" onclick="deleteSelected()">
+                        <i class="bi bi-trash"></i> Delete Selected
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="clearSelection()">
+                        <i class="bi bi-x-circle"></i> Clear Selection
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
     <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center bg-light">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="selectAllNotifications" onchange="toggleSelectAll()">
+                <label class="form-check-label fw-bold" for="selectAllNotifications">
+                    Select All
+                </label>
+            </div>
+            <small class="text-muted">@Model.Count() notification(s) total</small>
+        </div>
         <div class="card-body p-0">
             @if (Model != null && Model.Any())
             {
@@ -25,6 +70,9 @@
                 {
                     <div class="notification-item @(!notification.IsRead ? "unread" : "")" id="notification_@notification.NotificationId">
                         <div class="d-flex justify-content-between align-items-start">
+                            <div class="form-check me-3 mt-2">
+                                <input class="form-check-input notification-checkbox" type="checkbox" value="@notification.NotificationId" onchange="updateSelection()">
+                            </div>
                             <div class="flex-grow-1">
                                 <div class="d-flex align-items-center gap-2">
                                     @switch (notification.Type)
@@ -65,7 +113,7 @@
                                 </a>
                                 @if (!string.IsNullOrEmpty(notification.ActionUrl))
                                 {
-                                    <a href="@notification.ActionUrl" class="btn btn-sm btn-outline-primary">
+                                    <a href="@String.Format("{0}{1}", Settings.BaseUrl, notification.ActionUrl) " class="btn btn-sm btn-outline-primary">
                                         <i class="bi bi-box-arrow-up-right"></i> Go to
                                     </a>
                                 }
@@ -75,6 +123,9 @@
                                         <i class="bi bi-check"></i>
                                     </button>
                                 }
+                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteNotification(@notification.NotificationId)" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -91,12 +142,112 @@
         </div>
     </div>
 
+    <!-- Delete By Count Modal -->
+    <div class="modal fade" id="deleteByCountModal" tabindex="-1" aria-labelledby="deleteByCountModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteByCountModalLabel">
+                        <i class="bi bi-hash"></i> Delete Oldest Notifications
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted">This will delete the oldest notifications based on their creation date.</p>
+                    <div class="mb-3">
+                        <label for="deleteCountInput" class="form-label">Number of notifications to delete:</label>
+                        <input type="number" class="form-control" id="deleteCountInput" min="1" max="1000" value="10" placeholder="Enter number">
+                        <div class="form-text">Enter the number of oldest notifications you want to delete (1-1000)</div>
+                    </div>
+                    <div class="alert alert-warning mb-0">
+                        <i class="bi bi-exclamation-triangle"></i> <strong>Warning:</strong> This action cannot be undone!
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" onclick="executeDeleteByCount()">
+                        <i class="bi bi-trash"></i> Delete Notifications
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete By Date Modal -->
+    <div class="modal fade" id="deleteByDateModal" tabindex="-1" aria-labelledby="deleteByDateModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteByDateModalLabel">
+                        <i class="bi bi-calendar"></i> Delete Notifications Older Than Date
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted">This will delete all notifications created on or before the selected date.</p>
+                    <div class="mb-3">
+                        <label for="deleteDateInput" class="form-label">Delete notifications older than:</label>
+                        <input type="date" class="form-control" id="deleteDateInput">
+                        <div class="form-text">All notifications created on or before this date will be deleted</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Quick select:</label>
+                        <div class="btn-group w-100" role="group">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setDateOffset(7)">1 Week Ago</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setDateOffset(30)">1 Month Ago</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setDateOffset(90)">3 Months Ago</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setDateOffset(365)">1 Year Ago</button>
+                        </div>
+                    </div>
+                    <div class="alert alert-warning mb-0">
+                        <i class="bi bi-exclamation-triangle"></i> <strong>Warning:</strong> This action cannot be undone!
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" onclick="executeDeleteByDate()">
+                        <i class="bi bi-trash"></i> Delete Notifications
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     @section scripts {
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
         <script>
         $(document).ready(function () {
             $('.sidebar-link').removeClass('active');
             // No specific link for notifications in sidebar, but ensure it's highlighted if we add one
         });
+
+        function toggleSelectAll() {
+            var selectAll = $('#selectAllNotifications').is(':checked');
+            $('.notification-checkbox').prop('checked', selectAll);
+            updateSelection();
+        }
+
+        function updateSelection() {
+            var selectedCount = $('.notification-checkbox:checked').length;
+            $('#selectedCount').text(selectedCount);
+
+            if (selectedCount > 0) {
+                $('#bulkActionsRow').slideDown();
+            } else {
+                $('#bulkActionsRow').slideUp();
+            }
+
+            // Update select all checkbox state
+            var totalCheckboxes = $('.notification-checkbox').length;
+            var checkedCheckboxes = $('.notification-checkbox:checked').length;
+            $('#selectAllNotifications').prop('checked', totalCheckboxes > 0 && checkedCheckboxes === totalCheckboxes);
+        }
+
+        function clearSelection() {
+            $('.notification-checkbox').prop('checked', false);
+            $('#selectAllNotifications').prop('checked', false);
+            updateSelection();
+        }
 
         function markAsRead(notificationId) {
             $.post('@Url.Action("MarkAsRead")', { id: notificationId }, function () {
@@ -111,5 +262,403 @@
                 location.reload();
             });
         }
+
+        async function deleteNotification(notificationId) {
+            const result = await Swal.fire({
+                title: 'Delete Notification?',
+                text: 'This action cannot be undone.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, delete it!',
+                cancelButtonText: 'Cancel'
+            });
+
+            if (result.isConfirmed) {
+                $.post('@Url.Action("Delete")', { id: notificationId }, function (data) {
+                    if (data.success) {
+                        $('#notification_' + notificationId).fadeOut(300, function () {
+                            $(this).remove();
+                            // Check if no notifications left
+                            if ($('.notification-item').length === 0) {
+                                location.reload();
+                            }
+                        });
+                        Swal.fire({
+                            title: 'Deleted!',
+                            text: data.message,
+                            icon: 'success',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                    } else {
+                        Swal.fire({
+                            title: 'Error!',
+                            text: data.message,
+                            icon: 'error',
+                            confirmButtonColor: '#0d6efd'
+                        });
+                    }
+                }).fail(function () {
+                    Swal.fire({
+                        title: 'Error!',
+                        text: 'Failed to delete notification.',
+                        icon: 'error',
+                        confirmButtonColor: '#0d6efd'
+                    });
+                });
+            }
+        }
+
+        async function deleteSelected() {
+            var selectedIds = [];
+            $('.notification-checkbox:checked').each(function () {
+                selectedIds.push(parseInt($(this).val()));
+            });
+
+            if (selectedIds.length === 0) {
+                Swal.fire({
+                    title: 'No Selection',
+                    text: 'Please select at least one notification to delete.',
+                    icon: 'warning',
+                    confirmButtonColor: '#0d6efd'
+                });
+                return;
+            }
+
+            const result = await Swal.fire({
+                title: 'Delete Selected Notifications?',
+                html: 'Are you sure you want to delete <strong>' + selectedIds.length + '</strong> notification(s)?<br>This action cannot be undone.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, delete them!',
+                cancelButtonText: 'Cancel'
+            });
+
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: '@Url.Action("MassDelete")',
+                    type: 'POST',
+                    data: JSON.stringify({ notificationIds: selectedIds }),
+                    contentType: 'application/json',
+                    success: function (data) {
+                        if (data.success) {
+                            selectedIds.forEach(function (id) {
+                                $('#notification_' + id).fadeOut(300, function () {
+                                    $(this).remove();
+                                });
+                            });
+
+                            Swal.fire({
+                                title: 'Deleted!',
+                                text: data.message,
+                                icon: 'success',
+                                timer: 2000,
+                                showConfirmButton: false
+                            }).then(() => {
+                                clearSelection();
+                                // Check if no notifications left
+                                setTimeout(function () {
+                                    if ($('.notification-item').length === 0) {
+                                        location.reload();
+                                    }
+                                }, 500);
+                            });
+                        } else {
+                            Swal.fire({
+                                title: 'Error!',
+                                text: data.message,
+                                icon: 'error',
+                                confirmButtonColor: '#0d6efd'
+                            });
+                        }
+                    },
+                    error: function () {
+                        Swal.fire({
+                            title: 'Error!',
+                            text: 'Failed to delete notifications.',
+                            icon: 'error',
+                            confirmButtonColor: '#0d6efd'
+                        });
+                    }
+                });
+            }
+        }
+
+        async function deleteAllNotifications() {
+            const result = await Swal.fire({
+                title: 'Delete All Notifications?',
+                html: 'Are you sure you want to delete <strong>ALL</strong> your notifications?<br>This action cannot be undone.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, delete all!',
+                cancelButtonText: 'Cancel'
+            });
+
+            if (result.isConfirmed) {
+                $.post('@Url.Action("DeleteAll")', function (data) {
+                    if (data.success) {
+                        Swal.fire({
+                            title: 'Deleted!',
+                            text: data.message,
+                            icon: 'success',
+                            timer: 2000,
+                            showConfirmButton: false
+                        }).then(() => {
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire({
+                            title: 'Error!',
+                            text: data.message,
+                            icon: 'error',
+                            confirmButtonColor: '#0d6efd'
+                        });
+                    }
+                }).fail(function () {
+                    Swal.fire({
+                        title: 'Error!',
+                        text: 'Failed to delete notifications.',
+                        icon: 'error',
+                        confirmButtonColor: '#0d6efd'
+                    });
+                });
+            }
+        }
+
+        async function deleteReadNotifications() {
+            const result = await Swal.fire({
+                title: 'Delete All Read Notifications?',
+                text: 'This will delete all notifications you have already read. This action cannot be undone.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, delete read!',
+                cancelButtonText: 'Cancel'
+            });
+
+            if (result.isConfirmed) {
+                $.post('@Url.Action("DeleteRead")', function (data) {
+                    if (data.success) {
+                        Swal.fire({
+                            title: 'Deleted!',
+                            text: data.message,
+                            icon: 'success',
+                            timer: 2000,
+                            showConfirmButton: false
+                        }).then(() => {
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire({
+                            title: 'Info',
+                            text: data.message,
+                            icon: 'info',
+                            confirmButtonColor: '#0d6efd'
+                        });
+                    }
+                }).fail(function () {
+                    Swal.fire({
+                        title: 'Error!',
+                        text: 'Failed to delete notifications.',
+                        icon: 'error',
+                        confirmButtonColor: '#0d6efd'
+                    });
+                });
+            }
+        }
+
+        function setDateOffset(days) {
+            var date = new Date();
+            date.setDate(date.getDate() - days);
+            var dateString = date.toISOString().split('T')[0];
+            $('#deleteDateInput').val(dateString);
+        }
+
+        async function executeDeleteByCount() {
+            var count = parseInt($('#deleteCountInput').val());
+
+            if (!count || count <= 0) {
+                Swal.fire({
+                    title: 'Invalid Input',
+                    text: 'Please enter a valid number greater than 0.',
+                    icon: 'warning',
+                    confirmButtonColor: '#0d6efd'
+                });
+                return;
+            }
+
+            if (count > 1000) {
+                Swal.fire({
+                    title: 'Invalid Input',
+                    text: 'Maximum 1000 notifications can be deleted at once.',
+                    icon: 'warning',
+                    confirmButtonColor: '#0d6efd'
+                });
+                return;
+            }
+
+            // Close the modal
+            var modal = bootstrap.Modal.getInstance(document.getElementById('deleteByCountModal'));
+            modal.hide();
+
+            const result = await Swal.fire({
+                title: 'Delete Oldest Notifications?',
+                html: 'Are you sure you want to delete the oldest <strong>' + count + '</strong> notification(s)?<br>This action cannot be undone.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, delete them!',
+                cancelButtonText: 'Cancel'
+            });
+
+            if (result.isConfirmed) {
+                $.post('@Url.Action("DeleteOldest")', { count: count }, function (data) {
+                    if (data.success) {
+                        Swal.fire({
+                            title: 'Deleted!',
+                            text: data.message,
+                            icon: 'success',
+                            timer: 2000,
+                            showConfirmButton: false
+                        }).then(() => {
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire({
+                            title: 'Info',
+                            text: data.message,
+                            icon: 'info',
+                            confirmButtonColor: '#0d6efd'
+                        });
+                    }
+                }).fail(function () {
+                    Swal.fire({
+                        title: 'Error!',
+                        text: 'Failed to delete notifications.',
+                        icon: 'error',
+                        confirmButtonColor: '#0d6efd'
+                    });
+                });
+            }
+        }
+
+        async function executeDeleteByDate() {
+            var date = $('#deleteDateInput').val();
+
+            if (!date) {
+                Swal.fire({
+                    title: 'Invalid Input',
+                    text: 'Please select a date.',
+                    icon: 'warning',
+                    confirmButtonColor: '#0d6efd'
+                });
+                return;
+            }
+
+            // Parse the date for display
+            var dateObj = new Date(date);
+            var formattedDate = dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+
+            // Close the modal
+            var modal = bootstrap.Modal.getInstance(document.getElementById('deleteByDateModal'));
+            modal.hide();
+
+            const result = await Swal.fire({
+                title: 'Delete Notifications?',
+                html: 'Are you sure you want to delete all notifications created on or before <strong>' + formattedDate + '</strong>?<br>This action cannot be undone.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, delete them!',
+                cancelButtonText: 'Cancel'
+            });
+
+            if (result.isConfirmed) {
+                $.post('@Url.Action("DeleteOlderThan")', { date: date }, function (data) {
+                    if (data.success) {
+                        Swal.fire({
+                            title: 'Deleted!',
+                            text: data.message,
+                            icon: 'success',
+                            timer: 2000,
+                            showConfirmButton: false
+                        }).then(() => {
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire({
+                            title: 'Info',
+                            text: data.message,
+                            icon: 'info',
+                            confirmButtonColor: '#0d6efd'
+                        });
+                    }
+                }).fail(function () {
+                    Swal.fire({
+                        title: 'Error!',
+                        text: 'Failed to delete notifications.',
+                        icon: 'error',
+                        confirmButtonColor: '#0d6efd'
+                    });
+                });
+            }
+        }
         </script>
+
+        <style>
+            .notification-item {
+                padding: 1rem;
+                border-bottom: 1px solid #dee2e6;
+                transition: background-color 0.2s;
+            }
+
+            .notification-item:hover {
+                background-color: #f8f9fa;
+            }
+
+            .notification-item.unread {
+                background-color: #e7f3ff;
+                border-left: 4px solid #0d6efd;
+            }
+
+            .notification-item:last-child {
+                border-bottom: none;
+            }
+
+            .notification-checkbox {
+                cursor: pointer;
+                width: 1.2em;
+                height: 1.2em;
+            }
+
+            #selectAllNotifications {
+                cursor: pointer;
+                width: 1.2em;
+                height: 1.2em;
+            }
+
+            @@media (max-width: 768px) {
+                .notification-item .d-flex {
+                    flex-direction: column;
+                }
+
+                .notification-item .d-flex .gap-2 {
+                    margin-top: 0.5rem;
+                    width: 100%;
+                }
+
+                .notification-item .btn {
+                    width: 100%;
+                }
+            }
+        </style>
     }

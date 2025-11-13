@@ -1,12 +1,16 @@
+using System;
 using System.Linq;
 using System.Web;
 using FileSharePortal.Data;
+using FileSharePortal.Helpers;
 using FileSharePortal.Models;
+using log4net;
 
 namespace FileSharePortal.Services
 {
     public class ThemeService
     {
+        private static readonly ILog Logger = LoggingHelper.GetLogger(typeof(ThemeService));
         private readonly FileSharePortalContext _context;
 
         public ThemeService()
@@ -16,69 +20,140 @@ namespace FileSharePortal.Services
 
         public Theme GetActiveTheme()
         {
-            var settings = _context.SiteSettings.FirstOrDefault();
-            if (settings != null)
-            {
-                var theme = _context.Themes.Find(settings.ActiveThemeId);
-                if (theme != null)
-                {
-                    return theme;
-                }
-            }
+            Logger.Info("Retrieving active theme");
 
-            // Return default theme if no active theme found
-            return _context.Themes.FirstOrDefault(t => t.IsDefault) ?? GetDefaultTheme();
+            try
+            {
+                var settings = _context.SiteSettings.FirstOrDefault();
+
+                if (settings != null)
+                {
+                    var theme = _context.Themes.Find(settings.ActiveThemeId);
+
+                    if (theme != null)
+                    {
+                        Logger.Info($"Using active theme: {theme.ThemeName}");
+                        return theme;
+                    }
+                    else
+                    {
+                        Logger.Warn($"Active theme not found with ID: {settings.ActiveThemeId}");
+                    }
+                }
+                else
+                {
+                    Logger.Warn("Site settings not found");
+                }
+
+                // Return default theme if no active theme found
+                var defaultTheme = _context.Themes.FirstOrDefault(t => t.IsDefault) ?? GetDefaultTheme();
+                Logger.Info($"Using default theme: {defaultTheme.ThemeName}");
+                return defaultTheme;
+            }
+            catch (Exception ex)
+            {
+                LoggingHelper.LogError(Logger, "Error retrieving active theme", ex);
+                throw;
+            }
         }
 
         public SiteSettings GetSiteSettings()
         {
-            var settings = _context.SiteSettings.FirstOrDefault();
-            if (settings == null)
+            Logger.Info("Retrieving site settings");
+            
+            try
             {
-                settings = new SiteSettings
+                var settings = _context.SiteSettings.FirstOrDefault();
+
+                if (settings == null)
                 {
-                    SiteName = "File Share Portal",
-                    SiteDescription = "Secure file sharing platform",
-                    ActiveThemeId = 1,
-                    FaviconPath = "/Images/ff-favicon.ico",
-                    LogoPath = "/Images/ff-logo.png",
-                    LastModifiedDate = System.DateTime.Now
-                };
-                _context.SiteSettings.Add(settings);
-                _context.SaveChanges();
+                    Logger.Info("Site settings not found, creating default settings");
+
+                    settings = new SiteSettings
+                    {
+                        SiteName = "File Share Portal",
+                        SiteDescription = "Secure file sharing platform",
+                        ActiveThemeId = 1,
+                        FaviconPath = "/Images/ff-favicon.ico",
+                        LogoPath = "/Images/ff-logo.png",
+                        LastModifiedDate = System.DateTime.Now
+                    };
+
+                    _context.SiteSettings.Add(settings);
+                    _context.SaveChanges();
+
+                    Logger.Info($"Default site settings created with ID: {settings.SettingsId}");
+                }
+                else
+                {
+                    Logger.Debug($"Site settings found - SiteName: {settings.SiteName}, ActiveThemeId: {settings.ActiveThemeId}");
+                }
+
+                return settings;
             }
-            return settings;
+            catch (Exception ex)
+            {
+                LoggingHelper.LogError(Logger, "Error retrieving site settings", ex);
+                throw;
+            }
         }
 
         public void SetActiveTheme(int themeId)
         {
-            var settings = GetSiteSettings();
-            var theme = _context.Themes.Find(themeId);
-
-            if (theme != null)
+            Logger.Info($"Setting active theme to: {themeId}");
+            
+            try
             {
-                // Update all themes to inactive
-                var allThemes = _context.Themes.ToList();
-                foreach (var t in allThemes)
-                {
-                    t.IsActive = false;
-                }
+                var settings = GetSiteSettings();
+                var theme = _context.Themes.Find(themeId);
 
-                // Set new active theme
-                theme.IsActive = true;
-                settings.ActiveThemeId = themeId;
-                _context.SaveChanges();
+                if (theme != null)
+                {
+                    // Update all themes to inactive
+                    var allThemes = _context.Themes.ToList();
+
+                    foreach (var t in allThemes)
+                    {
+                        if (t.IsActive)
+                        {
+                            Logger.Debug($"Setting theme '{t.ThemeName}' to inactive");
+                            t.IsActive = false;
+                        }
+                    }
+
+                    // Set new active theme
+                    theme.IsActive = true;
+                    settings.ActiveThemeId = themeId;
+
+                    _context.SaveChanges();
+
+                    Logger.Info($"Active theme successfully set to: {theme.ThemeName} (ThemeId: {themeId})");
+                }
+                else
+                {
+                    Logger.Warn($"Theme not found with ID: {themeId}");
+                }
+            }
+            catch (Exception ex)
+            {
+                LoggingHelper.LogError(Logger, $"Error setting active theme to {themeId}", ex);
+                throw;
             }
         }
 
         public string GetThemeCss(Theme theme)
         {
-            if (theme == null)
-            {
-                return string.Empty;
-            }
+            Logger.Info($"Generating CSS for theme: {theme?.ThemeName ?? "null"}");
 
-            return $@"
+            try
+            {
+                if (theme == null)
+                {
+                    Logger.Warn("Theme is null, returning empty CSS");
+                    return string.Empty;
+                }
+
+                var css = $@"
                 :root {{
                     --primary-color: {theme.PrimaryColor};
                     --primary-color-hover: {theme.PrimaryColorHover ?? theme.PrimaryColor};
@@ -139,32 +214,62 @@ namespace FileSharePortal.Services
                     border-bottom-color: {theme.PrimaryColor};
                 }}
             ";
+
+                Logger.Debug($"CSS generated successfully for theme: {theme.ThemeName} (length: {css.Length} characters)");
+                return css;
+            }
+            catch (Exception ex)
+            {
+                LoggingHelper.LogError(Logger, $"Error generating CSS for theme: {theme?.ThemeName}", ex);
+                throw;
+            }
         }
 
         private Theme GetDefaultTheme()
         {
-            return new Theme
+            Logger.Info("Creating default theme object");
+
+            try
             {
-                ThemeName = "Default",
-                PrimaryColor = "#0d6efd",
-                PrimaryColorHover = "#0b5ed7",
-                SecondaryColor = "#6c757d",
-                SuccessColor = "#198754",
-                DangerColor = "#dc3545",
-                WarningColor = "#ffc107",
-                InfoColor = "#0dcaf0",
-                LightBackground = "#f8f9fa",
-                DarkBackground = "#212529",
-                SidebarBackground = "#ffffff",
-                SidebarTextColor = "#495057",
-                SidebarHoverBackground = "#f8f9fa",
-                SidebarActiveBackground = "#e7f3ff"
-            };
+                var theme = new Theme
+                {
+                    ThemeName = "Default",
+                    PrimaryColor = "#0d6efd",
+                    PrimaryColorHover = "#0b5ed7",
+                    SecondaryColor = "#6c757d",
+                    SuccessColor = "#198754",
+                    DangerColor = "#dc3545",
+                    WarningColor = "#ffc107",
+                    InfoColor = "#0dcaf0",
+                    LightBackground = "#f8f9fa",
+                    DarkBackground = "#212529",
+                    SidebarBackground = "#ffffff",
+                    SidebarTextColor = "#495057",
+                    SidebarHoverBackground = "#f8f9fa",
+                    SidebarActiveBackground = "#e7f3ff"
+                };
+
+                Logger.Debug("Default theme object created successfully");
+                return theme;
+            }
+            catch (Exception ex)
+            {
+                LoggingHelper.LogError(Logger, "Error creating default theme", ex);
+                throw;
+            }
         }
 
         public void Dispose()
         {
-            _context?.Dispose();
+            try
+            {
+                _context?.Dispose();
+            }
+            catch (Exception ex)
+            {
+                LoggingHelper.LogError(Logger, "Error during dispose", ex);
+                throw;
+            }
         }
     }
 }

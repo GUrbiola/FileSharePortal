@@ -127,6 +127,60 @@ namespace FileSharePortal.Controllers
         }
 
         [HttpPost]
+        public JsonResult MassUpdateUserStatus(int[] userIds, bool isActive)
+        {
+            try
+            {
+                if (userIds == null || userIds.Length == 0)
+                {
+                    return Json(new
+                    {
+                        success = false,
+                        message = "No users selected"
+                    });
+                }
+
+                var users = _context.Users.Where(u => userIds.Contains(u.UserId)).ToList();
+
+                if (users.Count == 0)
+                {
+                    return Json(new
+                    {
+                        success = false,
+                        message = "No valid users found"
+                    });
+                }
+
+                int updatedCount = 0;
+                foreach (var user in users)
+                {
+                    if (user.IsActive != isActive)
+                    {
+                        user.IsActive = isActive;
+                        updatedCount++;
+                    }
+                }
+
+                _context.SaveChanges();
+
+                var statusText = isActive ? "active" : "inactive";
+                return Json(new
+                {
+                    success = true,
+                    message = $"Successfully updated {updatedCount} user(s) to {statusText} status"
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new
+                {
+                    success = false,
+                    message = $"Error updating user status: {ex.Message}"
+                });
+            }
+        }
+
+        [HttpPost]
         public JsonResult SyncADUsers()
         {
             try

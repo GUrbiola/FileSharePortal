@@ -1,27 +1,54 @@
 using System;
+using System.EnterpriseServices.Internal;
+using System.IO;
 using System.Web;
 using System.Web.Http;
 using System.Web.Mvc;
 using System.Web.Optimization;
 using System.Web.Routing;
+using FileSharePortal.Helpers;
+using FileSharePortal.Models;
 using FileSharePortal.Services;
+using log4net;
 
 namespace FileSharePortal
 {
     public class MvcApplication : System.Web.HttpApplication
     {
+        private static readonly ILog Logger = LoggingHelper.GetLogger(typeof(MvcApplication));
+        private static DateTime _lastRedirectTime = DateTime.MinValue;
+        private static int RedirectCount = 0;
+
         protected void Application_Start()
         {
+            // Initialize log4net
+            log4net.Config.XmlConfigurator.Configure();
+            
+
+            // Ensure Logs directory exists
+            string logDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Logs");
+            if (!Directory.Exists(logDirectory))
+            {
+                Directory.CreateDirectory(logDirectory);
+            }
+
+            Logger.Info("========== Application Starting ==========");
+            Logger.Info($"Application Base Directory: {AppDomain.CurrentDomain.BaseDirectory}");
+            Logger.Info($"Log Directory: {logDirectory}");
+
             AreaRegistration.RegisterAllAreas();
             GlobalConfiguration.Configure(WebApiConfig.Register);
             FilterConfig.RegisterGlobalFilters(GlobalFilters.Filters);
             RouteConfig.RegisterRoutes(RouteTable.Routes);
             BundleConfig.RegisterBundles(BundleTable.Bundles);
+
+            Logger.Info("========== Application Started Successfully ==========");
         }
 
         protected void Application_Error(object sender, EventArgs e)
         {
             Exception exception = null;
+            int redirectTimer = 100;
 
             try
             {
@@ -32,6 +59,17 @@ namespace FileSharePortal
 
                 // Get the base exception (unwrap HttpException if present)
                 var baseException = exception.GetBaseException();
+
+                // Log to log4net
+                Logger.Error("=== UNHANDLED EXCEPTION ===");
+                Logger.Error($"Type: {baseException.GetType().FullName}");
+                Logger.Error($"Message: {baseException.Message}");
+                Logger.Error($"Stack Trace: {baseException.StackTrace}");
+                if (baseException.InnerException != null)
+                {
+                    Logger.Error($"Inner Exception: {baseException.InnerException.Message}");
+                }
+                Logger.Error("========================");
 
                 // Log to trace/event log FIRST - before any database operations
                 System.Diagnostics.Trace.TraceError($"=== UNHANDLED EXCEPTION ===");
@@ -63,24 +101,23 @@ namespace FileSharePortal
                     System.Diagnostics.Trace.TraceError($"Database error stack trace: {dbEx.StackTrace}");
                 }
 
-                // Don't log 404 errors (Not Found)
                 //var httpException = exception as HttpException;
                 //if (httpException != null)
                 //{
                 //    if (httpException.GetHttpCode() == 404)
                 //    {
                 //        Server.ClearError();
-                //        Response.Redirect("~/Error/NotFound");
+                //        RedirectIfMoreThanMillisecondsPassed("~/Error/NotFound", redirectTimer);
                 //    }
                 //    else if (httpException.GetHttpCode() == 403)
                 //    {
                 //        Server.ClearError();
-                //        Response.Redirect("~/Error/Unauthorized");
+                //        RedirectIfMoreThanMillisecondsPassed("~/Error/Unauthorized", redirectTimer);
                 //    }
                 //    else
                 //    {
                 //        Server.ClearError();
-                //        Response.Redirect("~/Error/Index");
+                //        RedirectIfMoreThanMillisecondsPassed("~/Error/Index", redirectTimer);
                 //    }
                 //    return;
                 //}
@@ -88,7 +125,7 @@ namespace FileSharePortal
                 //{
                 //    // Clear the error
                 //    Server.ClearError();
-                //    Response.Redirect("~/Error/Index");
+                //    RedirectIfMoreThanMillisecondsPassed("~/Error/Index", redirectTimer);
                 //}
             }
             catch (Exception ex)
@@ -102,6 +139,28 @@ namespace FileSharePortal
                     System.Diagnostics.Trace.TraceError($"Original Error: {exception.Message}");
                 }
                 System.Diagnostics.Trace.TraceError($"========================");
+            }
+        }
+
+        private void RedirectIfMoreThanMillisecondsPassed(string url, int milliseconds)
+        {
+            var _notificationService = new NotificationService();
+            int millisecondsSinceLastRedirect = _lastRedirectTime == DateTime.MinValue ? 0 : (int)(DateTime.Now - _lastRedirectTime).TotalMilliseconds;
+            if(RedirectCount > 20)
+            {
+                RedirectCount = 0;
+                _lastRedirectTime = DateTime.Now.AddSeconds(10); // Pause redirects for 10 seconds
+                return;
+            }
+            else
+            {
+                if (_lastRedirectTime == DateTime.MinValue || (DateTime.Now - _lastRedirectTime) > TimeSpan.FromMilliseconds(milliseconds))
+                {
+                    RedirectCount++;
+                    _notificationService.CreateNotification(2, "Trying to Redirect", $"Attempt to redirect response, {millisecondsSinceLastRedirect} ms since last redirect", NotificationType.ApplicationAlert);
+                    _lastRedirectTime = DateTime.Now;
+                    Response.Redirect(url);
+                }
             }
         }
     }

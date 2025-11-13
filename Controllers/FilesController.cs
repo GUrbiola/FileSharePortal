@@ -348,8 +348,14 @@ namespace FileSharePortal.Controllers
             return RedirectToAction("Details", new { id = fileId });
         }
 
-        public ActionResult Details(int id)
+        public ActionResult Details(int? id)
         {
+
+            if(!id.HasValue)
+            {
+                throw new HttpException(404, "File ID is required!");
+            }
+
             var currentUser = _authService.GetCurrentUser();
             ViewBag.CurrentUser = currentUser;
 
@@ -360,7 +366,7 @@ namespace FileSharePortal.Controllers
             }
 
             // Check if user has access (including through roles and distribution lists)
-            if (!HasUserAccessToFile(id, currentUser.UserId))
+            if (!HasUserAccessToFile(id.Value, currentUser.UserId))
             {
                 throw new HttpException(403, $"Access denied({id})!");
             }
@@ -372,7 +378,7 @@ namespace FileSharePortal.Controllers
                 .ToList();
 
             // Get all users with access (for detailed view)
-            var usersWithAccess = GetUsersWithAccess(id);
+            var usersWithAccess = GetUsersWithAccess(id.Value);
 
             // Add file owner to the list
             usersWithAccess.Add(file.UploadedByUserId);
@@ -382,6 +388,16 @@ namespace FileSharePortal.Controllers
                 .Select(u => new { u.UserId, u.FullName, u.Email })
                 .ToList();
             ViewBag.UsersWithAccess = usersWithAccessDetails;
+
+            // Set flag for download logs visibility (data loaded via AJAX)
+            if (file.UploadedByUserId == currentUser.UserId || currentUser.IsAdmin)
+            {
+                ViewBag.DownloadLogs = true; // Just a flag to show the section
+            }
+            else
+            {
+                ViewBag.DownloadLogs = null;
+            }
 
             // Update FileSize if it's 0 but we have content
             if (file.FileSize == 0 && file.FileContent != null && file.FileContent.Length > 0)
@@ -449,9 +465,40 @@ namespace FileSharePortal.Controllers
 
             // Increment download count
             file.DownloadCount++;
+
+            // Log the download
+            var downloadLog = new FileDownloadLog
+            {
+                FileId = id,
+                DownloadedByUserId = currentUser.UserId,
+                DownloadedDate = DateTime.Now,
+                IpAddress = GetClientIpAddress(),
+                UserAgent = Request.UserAgent
+            };
+            _context.FileDownloadLogs.Add(downloadLog);
+
             _context.SaveChanges();
 
             return File(file.FileContent, file.ContentType, file.FileName);
+        }
+
+        /// <summary>
+        /// Get the client's IP address, accounting for proxies
+        /// </summary>
+        private string GetClientIpAddress()
+        {
+            var ipAddress = Request.ServerVariables["HTTP_X_FORWARDED_FOR"];
+
+            if (!string.IsNullOrEmpty(ipAddress))
+            {
+                var addresses = ipAddress.Split(',');
+                if (addresses.Length != 0)
+                {
+                    return addresses[0];
+                }
+            }
+
+            return Request.ServerVariables["REMOTE_ADDR"];
         }
 
         [HttpGet]
@@ -537,6 +584,107 @@ namespace FileSharePortal.Controllers
             {
                 return Json(new { success = false, message = $"Error deleting file: {ex.Message}" });
             }
+        }
+
+        /// <summary>
+        /// Get paginated, filtered, and sorted download logs for DataTables
+        /// </summary>
+        [HttpPost]
+        public JsonResult GetDownloadLogs(int fileId, int draw, int start, int length,
+            string searchValue, int orderColumn, string orderDir)
+        {
+            var currentUser = _authService.GetCurrentUser();
+            var file = _context.SharedFiles.Find(fileId);
+
+            // Verify access
+            if (file == null || file.IsDeleted ||
+                (file.UploadedByUserId != currentUser.UserId && !currentUser.IsAdmin))
+            {
+                return Json(new
+                {
+                    draw = draw,
+                    recordsTotal = 0,
+                    recordsFiltered = 0,
+                    data = new List<object>()
+                });
+            }
+
+            // Start with base query
+            var query = _context.FileDownloadLogs
+                .Where(dl => dl.FileId == fileId)
+                .Include(dl => dl.DownloadedBy);
+
+            // Apply search filter
+            if (!string.IsNullOrEmpty(searchValue))
+            {
+                var search = searchValue.ToLower();
+                query = query.Where(dl =>
+                    dl.DownloadedBy.FullName.ToLower().Contains(search) ||
+                    dl.DownloadedBy.Email.ToLower().Contains(search) ||
+                    dl.IpAddress.ToLower().Contains(search) ||
+                    dl.UserAgent.ToLower().Contains(search));
+            }
+
+            // Get total count before paging
+            var totalRecords = _context.FileDownloadLogs.Count(dl => dl.FileId == fileId);
+            var filteredRecords = query.Count();
+
+            // Apply sorting
+            switch (orderColumn)
+            {
+                case 0: // User
+                    query = orderDir == "asc"
+                        ? query.OrderBy(dl => dl.DownloadedBy.FullName)
+                        : query.OrderByDescending(dl => dl.DownloadedBy.FullName);
+                    break;
+                case 1: // Date
+                    query = orderDir == "asc"
+                        ? query.OrderBy(dl => dl.DownloadedDate)
+                        : query.OrderByDescending(dl => dl.DownloadedDate);
+                    break;
+                case 2: // IP Address
+                    query = orderDir == "asc"
+                        ? query.OrderBy(dl => dl.IpAddress)
+                        : query.OrderByDescending(dl => dl.IpAddress);
+                    break;
+                case 3: // User Agent
+                    query = orderDir == "asc"
+                        ? query.OrderBy(dl => dl.UserAgent)
+                        : query.OrderByDescending(dl => dl.UserAgent);
+                    break;
+                default: // Default to date descending
+                    query = query.OrderByDescending(dl => dl.DownloadedDate);
+                    break;
+            }
+
+            // Apply paging
+            var data = query
+                .Skip(start)
+                .Take(length)
+                .ToList()
+                .Select(dl => new
+                {
+                    user = new
+                    {
+                        fullName = dl.DownloadedBy.FullName,
+                        email = dl.DownloadedBy.Email
+                    },
+                    downloadedDate = dl.DownloadedDate.ToString("MMM dd, yyyy HH:mm:ss"),
+                    ipAddress = string.IsNullOrEmpty(dl.IpAddress) ? "N/A" : dl.IpAddress,
+                    userAgent = string.IsNullOrEmpty(dl.UserAgent) ? "N/A" : dl.UserAgent,
+                    userAgentShort = string.IsNullOrEmpty(dl.UserAgent)
+                        ? "N/A"
+                        : (dl.UserAgent.Length > 50 ? dl.UserAgent.Substring(0, 50) + "..." : dl.UserAgent)
+                })
+                .ToList();
+
+            return Json(new
+            {
+                draw = draw,
+                recordsTotal = totalRecords,
+                recordsFiltered = filteredRecords,
+                data = data
+            });
         }
 
         /// <summary>

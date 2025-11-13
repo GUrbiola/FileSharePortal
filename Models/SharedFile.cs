@@ -75,11 +75,13 @@ namespace FileSharePortal.Models
 
         public virtual ICollection<FileShare> FileShares { get; set; }
         public virtual ICollection<FileReport> FileReports { get; set; }
+        public virtual ICollection<FileDownloadLog> DownloadLogs { get; set; }
 
         public SharedFile()
         {
             FileShares = new HashSet<FileShare>();
             FileReports = new HashSet<FileReport>();
+            DownloadLogs = new HashSet<FileDownloadLog>();
             UploadedDate = DateTime.Now;
             IsDeleted = false;
             DownloadCount = 0;

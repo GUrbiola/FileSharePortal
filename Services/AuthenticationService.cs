@@ -7,12 +7,15 @@ using System.Text;
 using System.Web;
 using System.Web.Security;
 using FileSharePortal.Data;
+using FileSharePortal.Helpers;
 using FileSharePortal.Models;
+using log4net;
 
 namespace FileSharePortal.Services
 {
     public class AuthenticationService
     {
+        private static readonly ILog Logger = LoggingHelper.GetLogger(typeof(AuthenticationService));
         private readonly FileSharePortalContext _context;
         private readonly bool _useActiveDirectory;
         private readonly string _adDomain;
@@ -26,39 +29,60 @@ namespace FileSharePortal.Services
 
         public User AuthenticateUser(string username, string password)
         {
-            string adUserName = String.Empty;
-            if(username.Contains("@ff.com"))
-            {
-                adUserName = username.Split('@')[0];
-            }
+            Logger.Info($"Attempting to authenticate user: {username}");
 
-            if (_useActiveDirectory && !string.IsNullOrEmpty(adUserName))
+            try
             {
-                return AuthenticateActiveDirectoryUser(adUserName, password);
+                string adUserName = String.Empty;
+
+                if (username.Contains("@ff.com"))
+                {
+                    adUserName = username.Split('@')[0];
+                    Logger.Debug($"Extracted AD username: {adUserName}");
+                }
+
+                if (_useActiveDirectory && !string.IsNullOrEmpty(adUserName))
+                {
+                    Logger.Info($"Using Active Directory authentication for user: {adUserName}");
+                    var result = AuthenticateActiveDirectoryUser(adUserName, password);
+                    return result;
+                }
+                else
+                {
+                    Logger.Info($"Using database authentication for user: {username}");
+                    var result = AuthenticateDatabaseUser(username, password);
+                    return result;
+                }
             }
-            else
+            catch (Exception ex)
             {
-                return AuthenticateDatabaseUser(username, password);
+                LoggingHelper.LogError(Logger, $"Error authenticating user: {username}", ex);
+                throw;
             }
         }
 
         private User AuthenticateActiveDirectoryUser(string username, string password)
         {
+            Logger.Info($"Authenticating AD user: {username} against domain: {_adDomain}");
+
             try
             {
                 using (var context = new PrincipalContext(ContextType.Domain, _adDomain))
                 {
                     if (context.ValidateCredentials(username, password))
                     {
+                        Logger.Info($"AD credentials validated successfully for user: {username}");
+
                         var userPrincipal = UserPrincipal.FindByIdentity(context, username);
+
                         if (userPrincipal != null)
                         {
-                            // Check if user exists in database
                             var user = _context.Users.FirstOrDefault(u => u.Username == username);
 
                             if (user == null)
                             {
-                                // Auto-create user from AD
+                                Logger.Info($"User not found in database, auto-creating AD user: {username}");
+
                                 user = new User
                                 {
                                     Username = username,
@@ -68,84 +92,159 @@ namespace FileSharePortal.Services
                                     IsActive = true,
                                     IsAdmin = false
                                 };
+
                                 _context.Users.Add(user);
                                 _context.SaveChanges();
+                            }
+                            else
+                            {
+                                Logger.Debug($"User found in database with UserId: {user.UserId}");
                             }
 
                             user.LastLoginDate = DateTime.Now;
                             _context.SaveChanges();
 
+                            Logger.Info($"AD authentication successful for user: {username} (UserId: {user.UserId})");
                             return user;
                         }
+                        else
+                        {
+                            Logger.Warn($"User principal not found in AD for: {username}");
+                        }
+                    }
+                    else
+                    {
+                        Logger.Warn($"AD credentials validation failed for user: {username}");
                     }
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Trace.TraceError($"AD Authentication error: {ex.Message}");
+                LoggingHelper.LogError(Logger, $"AD Authentication error for user: {username}", ex);
             }
 
+            Logger.Warn($"AD authentication failed for user: {username}");
             return null;
         }
 
         private User AuthenticateDatabaseUser(string username, string password)
         {
-            var hashedPassword = HashPassword(password);
-            var user = _context.Users.FirstOrDefault(u =>
-                u.Username == username &&
-                u.PasswordHash == hashedPassword &&
-                u.IsActive);
+            Logger.Info($"Authenticating database user: {username}");
 
-            if (user != null)
+            try
             {
-                user.LastLoginDate = DateTime.Now;
-                _context.SaveChanges();
-            }
+                var hashedPassword = HashPassword(password);
 
-            return user;
+                var user = _context.Users.FirstOrDefault(u =>
+                    u.Username == username &&
+                    u.PasswordHash == hashedPassword &&
+                    u.IsActive);
+
+                if (user != null)
+                {
+                    Logger.Info($"Database user found and authenticated: {username} (UserId: {user.UserId})");
+
+                    user.LastLoginDate = DateTime.Now;
+                    _context.SaveChanges();
+                    return user;
+                }
+                else
+                {
+                    Logger.Warn($"Database authentication failed for user: {username} - User not found or inactive");
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                LoggingHelper.LogError(Logger, $"Error during database authentication for user: {username}", ex);
+                throw;
+            }
         }
 
         public void SetAuthenticationTicket(User user, bool persistCookie = false)
         {
-            var ticket = new FormsAuthenticationTicket(
-                1,
-                user.Username,
-                DateTime.Now,
-                DateTime.Now.AddHours(8),
-                persistCookie,
-                user.UserId.ToString(),
-                FormsAuthentication.FormsCookiePath
-            );
+            Logger.Info($"Setting authentication ticket for user: {user?.Username} (Persist: {persistCookie})");
 
-            var encryptedTicket = FormsAuthentication.Encrypt(ticket);
-            var cookie = new HttpCookie(FormsAuthentication.FormsCookieName, encryptedTicket)
+            try
             {
-                HttpOnly = true,
-                Secure = FormsAuthentication.RequireSSL,
-                Path = FormsAuthentication.FormsCookiePath
-            };
+                var ticket = new FormsAuthenticationTicket(
+                    1,
+                    user.Username,
+                    DateTime.Now,
+                    DateTime.Now.AddHours(8),
+                    persistCookie,
+                    user.UserId.ToString(),
+                    FormsAuthentication.FormsCookiePath
+                );
 
-            if (persistCookie)
-            {
-                cookie.Expires = ticket.Expiration;
+                Logger.Debug($"Ticket created - Expiration: {ticket.Expiration}, UserId: {user.UserId}");
+
+                var encryptedTicket = FormsAuthentication.Encrypt(ticket);
+
+                var cookie = new HttpCookie(FormsAuthentication.FormsCookieName, encryptedTicket)
+                {
+                    HttpOnly = true,
+                    Secure = FormsAuthentication.RequireSSL,
+                    Path = FormsAuthentication.FormsCookiePath
+                };
+
+                if (persistCookie)
+                {
+                    cookie.Expires = ticket.Expiration;
+                    Logger.Debug($"Cookie set to expire at: {cookie.Expires}");
+                }
+
+                HttpContext.Current.Response.Cookies.Add(cookie);
+
+                Logger.Info($"Authentication ticket set successfully for user: {user.Username}");
             }
-
-            HttpContext.Current.Response.Cookies.Add(cookie);
+            catch (Exception ex)
+            {
+                LoggingHelper.LogError(Logger, $"Error setting authentication ticket for user: {user?.Username}", ex);
+                throw;
+            }
         }
 
         public User GetCurrentUser()
         {
-            if (HttpContext.Current.User.Identity.IsAuthenticated)
+            Logger.Debug($"GetCurrentUser method was called");
+            try
             {
-                var username = HttpContext.Current.User.Identity.Name;
-                return _context.Users.FirstOrDefault(u => u.Username == username && u.IsActive);
-            }
+                if (HttpContext.Current.User.Identity.IsAuthenticated)
+                {
+                    var username = HttpContext.Current.User.Identity.Name;
+                    Logger.Debug($"User is authenticated: {username}");
 
-            return null;
+                    var user = _context.Users.FirstOrDefault(u => u.Username == username && u.IsActive);
+
+                    if (user != null)
+                    {
+                        Logger.Debug($"User found in database: {username} (UserId: {user.UserId})");
+                        return user;
+                    }
+                    else
+                    {
+                        Logger.Warn($"Authenticated user not found or inactive in database: {username}");
+                    }
+                }
+                else
+                {
+                    Logger.Debug("No authenticated user");
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                LoggingHelper.LogError(Logger, "Error getting current user", ex);
+                throw;
+            }
         }
 
         public static string HashPassword(string password)
         {
+            // Note: Static method - no instance logging
             using (var sha256 = SHA256.Create())
             {
                 var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
@@ -155,11 +254,20 @@ namespace FileSharePortal.Services
 
         public void Dispose()
         {
-            _context?.Dispose();
+            try
+            {
+                _context?.Dispose();
+            }
+            catch (Exception ex)
+            {
+                LoggingHelper.LogError(Logger, "Error during dispose", ex);
+                throw;
+            }
         }
 
         public static bool VerifyPassword(string password, string passwordHash)
         {
+            // Note: Static method - no instance logging
             string hashedPassword = HashPassword(password);
             return hashedPassword == passwordHash;
         }

@@ -17,6 +17,7 @@ namespace FileSharePortal.Data
         public DbSet<RoleDistributionList> RoleDistributionLists { get; set; }
         public DbSet<SharedFile> SharedFiles { get; set; }
         public DbSet<FileShare> FileShares { get; set; }
+        public DbSet<FileDownloadLog> FileDownloadLogs { get; set; }
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<FileReport> FileReports { get; set; }
         public DbSet<Application> Applications { get; set; }
@@ -48,6 +49,18 @@ namespace FileSharePortal.Data
                 .HasRequired(sf => sf.UploadedBy)
                 .WithMany(u => u.UploadedFiles)
                 .HasForeignKey(sf => sf.UploadedByUserId)
+                .WillCascadeOnDelete(false);
+
+            modelBuilder.Entity<FileDownloadLog>()
+                .HasRequired(fdl => fdl.SharedFile)
+                .WithMany(sf => sf.DownloadLogs)
+                .HasForeignKey(fdl => fdl.FileId)
+                .WillCascadeOnDelete(false);
+
+            modelBuilder.Entity<FileDownloadLog>()
+                .HasRequired(fdl => fdl.DownloadedBy)
+                .WithMany()
+                .HasForeignKey(fdl => fdl.DownloadedByUserId)
                 .WillCascadeOnDelete(false);
         }
     }

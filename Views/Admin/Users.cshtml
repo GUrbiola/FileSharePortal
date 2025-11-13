@@ -71,10 +71,31 @@
                     <span id="resultCount" class="text-muted"></span>
                 </div>
             </div>
+            <div class="row mb-3" id="bulkActionsRow" style="display: none;">
+                <div class="col-md-12">
+                    <div class="alert alert-info d-flex justify-content-between align-items-center">
+                        <span><strong id="selectedCount">0</strong> user(s) selected</span>
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-success btn-sm" onclick="bulkUpdateStatus(true)">
+                                <i class="bi bi-check-circle"></i> Activate Selected
+                            </button>
+                            <button type="button" class="btn btn-warning btn-sm" onclick="bulkUpdateStatus(false)">
+                                <i class="bi bi-x-circle"></i> Deactivate Selected
+                            </button>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="clearSelection()">
+                                <i class="bi bi-arrow-counterclockwise"></i> Clear Selection
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div class="table-responsive">
                 <table class="table table-hover" id="usersTable">
                     <thead>
                         <tr>
+                            <th>
+                                <input type="checkbox" id="selectAllUsers" onchange="toggleSelectAll()" title="Select All">
+                            </th>
                             <th>Username</th>
                             <th>Full Name</th>
                             <th>Email</th>
@@ -89,6 +110,9 @@
                         @foreach (var user in Model)
                         {
                             <tr id="user_@user.UserId">
+                                <td>
+                                    <input type="checkbox" class="user-checkbox" value="@user.UserId" onchange="updateSelection()">
+                                </td>
                                 <td><strong>@user.Username</strong></td>
                                 <td>@user.FullName</td>
                                 <td>@user.Email</td>
@@ -153,6 +177,105 @@
             // Show initial count
             updateResultCount();
         });
+
+        function toggleSelectAll() {
+            var selectAll = $('#selectAllUsers').is(':checked');
+            $('.user-checkbox:visible').prop('checked', selectAll);
+            updateSelection();
+        }
+
+        function updateSelection() {
+            var selectedCount = $('.user-checkbox:checked').length;
+            $('#selectedCount').text(selectedCount);
+
+            if (selectedCount > 0) {
+                $('#bulkActionsRow').slideDown();
+            } else {
+                $('#bulkActionsRow').slideUp();
+            }
+
+            // Update select all checkbox state
+            var visibleCheckboxes = $('.user-checkbox:visible').length;
+            var checkedVisibleCheckboxes = $('.user-checkbox:visible:checked').length;
+            $('#selectAllUsers').prop('checked', visibleCheckboxes > 0 && checkedVisibleCheckboxes === visibleCheckboxes);
+        }
+
+        function clearSelection() {
+            $('.user-checkbox').prop('checked', false);
+            $('#selectAllUsers').prop('checked', false);
+            updateSelection();
+        }
+
+        async function bulkUpdateStatus(newStatus) {
+            var selectedUserIds = [];
+            $('.user-checkbox:checked').each(function() {
+                selectedUserIds.push(parseInt($(this).val()));
+            });
+
+            if (selectedUserIds.length === 0) {
+                Swal.fire({
+                    title: 'No Users Selected',
+                    text: 'Please select at least one user to update.',
+                    icon: 'warning',
+                    confirmButtonColor: '#0d6efd'
+                });
+                return;
+            }
+
+            var statusText = newStatus ? 'Active' : 'Inactive';
+            var result = await Swal.fire({
+                title: 'Are you sure?',
+                html: 'Update status to <strong>' + statusText + '</strong> for <strong>' + selectedUserIds.length + '</strong> user(s)?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#0d6efd',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, update!',
+                cancelButtonText: 'Cancel'
+            });
+
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: '@Url.Action("MassUpdateUserStatus")',
+                    type: 'POST',
+                    data: JSON.stringify({ userIds: selectedUserIds, isActive: newStatus }),
+                    contentType: 'application/json',
+                    success: function(data) {
+                        if (data.success) {
+                            Swal.fire({
+                                title: 'Success!',
+                                html: data.message,
+                                icon: 'success',
+                                confirmButtonColor: '#0d6efd'
+                            }).then(() => {
+                                // Update UI for affected users
+                                selectedUserIds.forEach(function(userId) {
+                                    var row = $('#user_' + userId);
+                                    var statusCheckbox = row.find('td:eq(6) input[type="checkbox"]');
+                                    statusCheckbox.prop('checked', newStatus);
+                                });
+                                clearSelection();
+                            });
+                        } else {
+                            Swal.fire({
+                                title: 'Error!',
+                                text: data.message,
+                                icon: 'error',
+                                confirmButtonColor: '#0d6efd'
+                            });
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        Swal.fire({
+                            title: 'Error!',
+                            text: 'Error updating user status: ' + error,
+                            icon: 'error',
+                            confirmButtonColor: '#0d6efd'
+                        });
+                    }
+                });
+            }
+        }
 
 
         function toggleStatus(userId) {
@@ -324,12 +447,12 @@
 
             $('#usersTable tbody tr').each(function () {
                 var row = $(this);
-                var username = row.find('td:eq(0)').text().toLowerCase();
-                var fullName = row.find('td:eq(1)').text().toLowerCase();
-                var email = row.find('td:eq(2)').text().toLowerCase();
-                var source = row.find('td:eq(3)').text().toLowerCase();
-                var isAdmin = row.find('td:eq(4) input[type="checkbox"]').is(':checked');
-                var isActive = row.find('td:eq(5) input[type="checkbox"]').is(':checked');
+                var username = row.find('td:eq(1)').text().toLowerCase();
+                var fullName = row.find('td:eq(2)').text().toLowerCase();
+                var email = row.find('td:eq(3)').text().toLowerCase();
+                var source = row.find('td:eq(4)').text().toLowerCase();
+                var isAdmin = row.find('td:eq(5) input[type="checkbox"]').is(':checked');
+                var isActive = row.find('td:eq(6) input[type="checkbox"]').is(':checked');
 
                 var showRow = true;
 

@@ -4,18 +4,22 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Web;
 using FileSharePortal.Data;
+using FileSharePortal.Helpers;
 using FileSharePortal.Models;
+using log4net;
 
 namespace FileSharePortal.Services
 {
     public class ErrorLoggingService : IDisposable
     {
+        private static readonly ILog Logger = LoggingHelper.GetLogger(typeof(ErrorLoggingService));
         private readonly FileSharePortalContext _context;
         private readonly NotificationService _notificationService;
 
         public ErrorLoggingService()
         {
             _context = new FileSharePortalContext();
+
             _notificationService = new NotificationService();
         }
 
@@ -24,6 +28,9 @@ namespace FileSharePortal.Services
         /// </summary>
         public int LogError(Exception exception, HttpContext httpContext = null)
         {
+            LoggingHelper.LogWithParams(Logger, "LogError", exception?.GetType().FullName, httpContext != null);
+            Logger.Error($"Logging error: {exception?.Message}", exception);
+
             try
             {
                 var errorLog = new ErrorLog
@@ -41,12 +48,16 @@ namespace FileSharePortal.Services
                 // Get HTTP context information if available
                 if (httpContext != null)
                 {
+                    Logger.Debug("HTTP context available, extracting request information");
+
                     try
                     {
                         errorLog.RequestUrl = httpContext.Request.Url?.ToString();
                         errorLog.HttpMethod = httpContext.Request.HttpMethod;
                         errorLog.UserAgent = httpContext.Request.UserAgent;
                         errorLog.IpAddress = GetClientIpAddress(httpContext);
+
+                        Logger.Debug($"Request info - URL: {errorLog.RequestUrl}, Method: {errorLog.HttpMethod}");
 
                         // Try to get current user information
                         if (httpContext.User?.Identity?.IsAuthenticated == true)
@@ -58,6 +69,7 @@ namespace FileSharePortal.Services
                             if (user != null)
                             {
                                 errorLog.UserId = user.UserId;
+                                Logger.Debug($"User identified - Username: {errorLog.Username}, UserId: {errorLog.UserId}");
                             }
                         }
 
@@ -67,17 +79,25 @@ namespace FileSharePortal.Services
                         {
                             errorLog.ControllerName = routeData.Values["controller"]?.ToString();
                             errorLog.ActionName = routeData.Values["action"]?.ToString();
+                            Logger.Debug($"Route data - Controller: {errorLog.ControllerName}, Action: {errorLog.ActionName}");
                         }
                     }
-                    catch
+                    catch (Exception contextEx)
                     {
                         // If we can't get context info, just continue without it
+                        Logger.Warn($"Failed to extract HTTP context info: {contextEx.Message}");
                     }
+                }
+                else
+                {
+                    Logger.Debug("No HTTP context available");
                 }
 
                 // Save error to database
                 _context.ErrorLogs.Add(errorLog);
                 _context.SaveChanges();
+
+                Logger.Info($"Error logged to database with ID: {errorLog.ErrorLogId}");
 
                 // Notify debug admin if configured
                 NotifyDebugAdmin(errorLog);
@@ -87,6 +107,7 @@ namespace FileSharePortal.Services
             catch (Exception ex)
             {
                 // If we can't log to database, at least log to trace/event log
+                Logger.Error("Error logging to database failed", ex);
                 System.Diagnostics.Trace.WriteLine($"Error logging failed: {ex.Message}");
                 return -1;
             }
@@ -97,14 +118,19 @@ namespace FileSharePortal.Services
         /// </summary>
         private void NotifyDebugAdmin(ErrorLog errorLog)
         {
+            Logger.Debug("Attempting to notify debug admin of error");
+
             try
             {
                 var debugAdminUsername = ConfigurationManager.AppSettings["DebugAdminUsername"];
 
                 if (string.IsNullOrWhiteSpace(debugAdminUsername))
                 {
+                    Logger.Debug("DebugAdminUsername not configured, skipping notification");
                     return;
                 }
+
+                Logger.Debug($"Debug admin username configured: {debugAdminUsername}");
 
                 // Find the debug admin user
                 var debugAdmin = _context.Users.FirstOrDefault(u =>
@@ -113,8 +139,11 @@ namespace FileSharePortal.Services
 
                 if (debugAdmin == null)
                 {
+                    Logger.Warn($"Debug admin user not found or inactive: {debugAdminUsername}");
                     return;
                 }
+
+                Logger.Debug($"Debug admin found - UserId: {debugAdmin.UserId}");
 
                 // Create notification for debug admin
                 var notification = new Notification
@@ -135,10 +164,13 @@ namespace FileSharePortal.Services
 
                 _context.Notifications.Add(notification);
                 _context.SaveChanges();
+
+                Logger.Info($"Debug admin notification created successfully for error {errorLog.ErrorLogId}");
             }
             catch (Exception ex)
             {
                 // If notification fails, just log it and continue
+                LoggingHelper.LogError(Logger, "Debug admin notification failed", ex);
                 System.Diagnostics.Trace.WriteLine($"Debug admin notification failed: {ex.Message}");
             }
         }
@@ -148,8 +180,13 @@ namespace FileSharePortal.Services
         /// </summary>
         private void ExtractSourceLocation(string stackTrace, ErrorLog errorLog)
         {
+            Logger.Debug("Extracting source location from stack trace");
+
             if (string.IsNullOrWhiteSpace(stackTrace))
+            {
+                Logger.Debug("Stack trace is empty, nothing to extract");
                 return;
+            }
 
             try
             {
@@ -164,11 +201,19 @@ namespace FileSharePortal.Services
                     {
                         errorLog.LineNumber = lineNumber;
                     }
+
+                    Logger.Debug($"Source location extracted - File: {errorLog.SourceFile}, Line: {errorLog.LineNumber}");
                 }
+                else
+                {
+                    Logger.Debug("No source location pattern matched in stack trace");
+                }
+
             }
-            catch
+            catch (Exception ex)
             {
                 // If extraction fails, just continue without source location
+                Logger.Warn($"Failed to extract source location: {ex.Message}");
             }
         }
 
@@ -177,31 +222,47 @@ namespace FileSharePortal.Services
         /// </summary>
         private string GetClientIpAddress(HttpContext context)
         {
+            Logger.Debug("Extracting client IP address");
+
             try
             {
                 var ipAddress = context.Request.ServerVariables["HTTP_X_FORWARDED_FOR"];
 
                 if (!string.IsNullOrEmpty(ipAddress))
                 {
+                    Logger.Debug($"X-Forwarded-For header found: {ipAddress}");
                     var addresses = ipAddress.Split(',');
                     if (addresses.Length != 0)
                     {
-                        return addresses[0];
+                        var clientIp = addresses[0];
+                        Logger.Debug($"Client IP extracted: {clientIp}");
+                        return clientIp;
                     }
                 }
 
-                return context.Request.ServerVariables["REMOTE_ADDR"];
+                var remoteAddr = context.Request.ServerVariables["REMOTE_ADDR"];
+                Logger.Debug($"Remote address: {remoteAddr}");
+                return remoteAddr;
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.Warn($"Failed to get client IP address: {ex.Message}");
                 return "Unknown";
             }
         }
 
         public void Dispose()
         {
-            _context?.Dispose();
-            _notificationService?.Dispose();
+            try
+            {
+                _context?.Dispose();
+                _notificationService?.Dispose();
+            }
+            catch (Exception ex)
+            {
+                LoggingHelper.LogError(Logger, "Error during dispose", ex);
+                throw;
+            }
         }
     }
 }

@@ -4,39 +4,51 @@ using System.Configuration;
 using System.DirectoryServices.AccountManagement;
 using System.Linq;
 using FileSharePortal.Data;
+using FileSharePortal.Helpers;
 using FileSharePortal.Models;
+using log4net;
 
 namespace FileSharePortal.Services
 {
     public class ADSyncService
     {
+        private static readonly ILog Logger = LoggingHelper.GetLogger(typeof(ADSyncService));
         private readonly FileSharePortalContext _context;
         private readonly string _adDomain;
 
         public ADSyncService()
         {
             _context = new FileSharePortalContext();
+
             _adDomain = ConfigurationManager.AppSettings["ADDomain"];
+            Logger.Debug($"ADDomain = {_adDomain}");
+            Logger.Debug("ADSyncService constructor completed");
         }
 
         public ADSyncResult SynchronizeADUsers()
         {
+            Logger.Info("Starting Active Directory user synchronization");
+
             var result = new ADSyncResult();
 
             try
             {
                 if (string.IsNullOrEmpty(_adDomain))
                 {
+                    Logger.Warn("Active Directory domain not configured");
                     result.ErrorMessage = "Active Directory domain not configured";
                     return result;
                 }
+                Logger.Debug($"AD Domain configured: {_adDomain}");
 
                 // Get all users from Active Directory
                 var adUsers = GetAllADUsers();
                 result.TotalADUsers = adUsers.Count;
+                Logger.Info($"Retrieved {adUsers.Count} user(s) from Active Directory");
 
                 // Get all AD users from database
                 var dbADUsers = _context.Users.Where(u => u.IsFromActiveDirectory).ToList();
+                Logger.Debug($"Found {dbADUsers.Count} AD user(s) in database");
 
                 // Create a dictionary for quick lookup
                 var adUserDict = adUsers.ToDictionary(u => u.Username.ToLower(), u => u);
@@ -75,12 +87,14 @@ namespace FileSharePortal.Services
 
                         if (updated)
                         {
+                            Logger.Debug($"User updated: {username}");
                             result.UsersUpdated++;
                         }
                     }
                     else
                     {
                         // Add new user
+                        Logger.Info($"Adding new user from AD: {username}");
                         var newUser = new User
                         {
                             Username = adUser.Username,
@@ -102,6 +116,7 @@ namespace FileSharePortal.Services
                     var username = dbUser.Username.ToLower();
                     if (!adUserDict.ContainsKey(username) && dbUser.IsActive)
                     {
+                        Logger.Info($"Disabling user (not found in AD): {username}");
                         dbUser.IsActive = false;
                         result.UsersDisabled++;
                     }
@@ -109,12 +124,14 @@ namespace FileSharePortal.Services
 
                 _context.SaveChanges();
                 result.Success = true;
+
+                Logger.Info($"AD Synchronization completed successfully: {result.GetSummary()}");
             }
             catch (Exception ex)
             {
                 result.Success = false;
                 result.ErrorMessage = ex.Message;
-                System.Diagnostics.Trace.TraceError($"AD Sync error: {ex.Message}");
+                LoggingHelper.LogError(Logger, "AD Synchronization failed", ex);
             }
 
             return result;
@@ -122,6 +139,8 @@ namespace FileSharePortal.Services
 
         private List<ADUserInfo> GetAllADUsers()
         {
+            Logger.Info($"Retrieving all users from Active Directory domain: {_adDomain}");
+
             var users = new List<ADUserInfo>();
 
             try
@@ -130,13 +149,17 @@ namespace FileSharePortal.Services
                 {
                     using (var searcher = new PrincipalSearcher(new UserPrincipal(context)))
                     {
+                        int totalCount = 0;
+                        int enabledCount = 0;
+
                         foreach (var result in searcher.FindAll())
                         {
+                            totalCount++;
                             var userPrincipal = result as UserPrincipal;
-                            if (userPrincipal != null &&
-                                userPrincipal.Enabled == true &&
-                                !string.IsNullOrEmpty(userPrincipal.SamAccountName))
+
+                            if (userPrincipal != null && userPrincipal.Enabled == true && !string.IsNullOrEmpty(userPrincipal.SamAccountName))
                             {
+                                enabledCount++;
                                 users.Add(new ADUserInfo
                                 {
                                     Username = userPrincipal.SamAccountName,
@@ -144,22 +167,36 @@ namespace FileSharePortal.Services
                                     Email = userPrincipal.EmailAddress ?? $"{userPrincipal.SamAccountName}@{_adDomain}"
                                 });
                             }
+                            else if (userPrincipal != null)
+                            {
+                                //Logger.Debug($"Skipping disabled or invalid AD user: {userPrincipal.SamAccountName}");
+                            }
                         }
+
+                        Logger.Info($"Processed {totalCount} AD principal(s), retrieved {enabledCount} enabled user(s)");
                     }
                 }
+
+                return users;
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Trace.TraceError($"Error retrieving AD users: {ex.Message}");
+                LoggingHelper.LogError(Logger, $"Error retrieving AD users from domain {_adDomain}", ex);
                 throw;
             }
-
-            return users;
         }
 
         public void Dispose()
         {
-            _context?.Dispose();
+            try
+            {
+                _context?.Dispose();
+            }
+            catch (Exception ex)
+            {
+                LoggingHelper.LogError(Logger, "Error during dispose", ex);
+                throw;
+            }
         }
 
         private class ADUserInfo

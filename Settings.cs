@@ -18,5 +18,17 @@ namespace FileSharePortal
         public static bool ShowAppearanceSection => System.Configuration.ConfigurationManager.AppSettings["ShowAppearanceSection"] == "true";
         public static bool ShowApplicationsSection => System.Configuration.ConfigurationManager.AppSettings["ShowApplicationsSection"] == "true";
         public static bool ShowNotificationsSection => System.Configuration.ConfigurationManager.AppSettings["ShowNotificationsSection"] == "true";
+        public static int RedirectTimerMilliseconds
+        {
+            get
+            {
+                int timer;
+                if (int.TryParse(System.Configuration.ConfigurationManager.AppSettings["RedirectTimer"], out timer))
+                {
+                    return timer;
+                }
+                return 100; // Default to 100 ms if not set or invalid
+            }
+        }
     }
 }

@@ -204,6 +204,37 @@
                 </div>
             </div>
         }
+
+        @if (ViewBag.DownloadLogs != null)
+        {
+            <div class="card mt-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>
+                        <i class="bi bi-clock-history"></i> Download History
+                        <span class="badge bg-success" id="totalDownloadsCount">0</span>
+                    </span>
+                    <small class="text-muted">Only visible to owner and admins</small>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3">Detailed download tracking - who downloaded this file, when, and from where. Use the search box to filter results.</p>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover" id="downloadHistoryTable">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Date & Time</th>
+                                    <th>IP Address</th>
+                                    <th>User Agent</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Data loaded via AJAX -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
     </div>
 
     <div class="col-md-4">
@@ -273,9 +304,171 @@
     </div>
 </div>
 @section scripts {
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css">
+
+    <!-- DataTables JS -->
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
+
     <script>
     $(document).ready(function () {
-            $('.sidebar-link').removeClass('active');
-            $('#FilesLink').addClass('active');
-        });</script>
+        $('.sidebar-link').removeClass('active');
+        $('#FilesLink').addClass('active');
+
+        // Initialize DataTable for download history
+        @if (ViewBag.DownloadLogs != null)
+        {
+            <text>
+            var downloadTable = $('#downloadHistoryTable').DataTable({
+                processing: true,
+                serverSide: true,
+                ajax: {
+                    url: '@Url.Action("GetDownloadLogs")',
+                    type: 'POST',
+                    data: function(d) {
+                        return {
+                            fileId: @Model.FileId,
+                            draw: d.draw,
+                            start: d.start,
+                            length: d.length,
+                            searchValue: d.search.value,
+                            orderColumn: d.order[0].column,
+                            orderDir: d.order[0].dir
+                        };
+                    },
+                    dataSrc: function(json) {
+                        // Update the total downloads count badge
+                        $('#totalDownloadsCount').text(json.recordsTotal);
+                        return json.data;
+                    },
+                    error: function(xhr, error, thrown) {
+                        console.error('DataTables error:', error, thrown);
+                    }
+                },
+                columns: [
+                    {
+                        data: 'user',
+                        render: function(data, type, row) {
+                            if (type === 'display') {
+                                return '<i class="bi bi-person-circle me-1"></i>' +
+                                       '<strong>' + data.fullName + '</strong><br/>' +
+                                       '<small class="text-muted">' + data.email + '</small>';
+                            }
+                            return data.fullName + ' ' + data.email;
+                        },
+                        orderable: true
+                    },
+                    {
+                        data: 'downloadedDate',
+                        render: function(data, type, row) {
+                            if (type === 'display') {
+                                var parts = data.split(' ');
+                                var date = parts.slice(0, 3).join(' ');
+                                var time = parts[3];
+                                return '<i class="bi bi-calendar me-1"></i>' + date + '<br/>' +
+                                       '<small class="text-muted"><i class="bi bi-clock me-1"></i>' + time + '</small>';
+                            }
+                            return data;
+                        },
+                        orderable: true
+                    },
+                    {
+                        data: 'ipAddress',
+                        render: function(data, type, row) {
+                            if (type === 'display') {
+                                return '<i class="bi bi-geo-alt me-1"></i><code>' + data + '</code>';
+                            }
+                            return data;
+                        },
+                        orderable: true
+                    },
+                    {
+                        data: 'userAgent',
+                        render: function(data, type, row) {
+                            if (type === 'display') {
+                                return '<small class="text-muted" title="' + data + '">' + row.userAgentShort + '</small>';
+                            }
+                            return data;
+                        },
+                        orderable: true
+                    }
+                ],
+                order: [[1, 'desc']], // Default sort by date descending
+                pageLength: 10,
+                lengthMenu: [[5, 10, 25, 50, 100], [5, 10, 25, 50, 100]],
+                language: {
+                    search: "Search downloads:",
+                    lengthMenu: "Show _MENU_ downloads per page",
+                    info: "Showing _START_ to _END_ of _TOTAL_ downloads",
+                    infoEmpty: "No downloads to show",
+                    infoFiltered: "(filtered from _MAX_ total downloads)",
+                    zeroRecords: "No matching downloads found",
+                    emptyTable: "No downloads yet",
+                    paginate: {
+                        first: "First",
+                        last: "Last",
+                        next: "Next",
+                        previous: "Previous"
+                    },
+                    processing: '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>'
+                },
+                responsive: true,
+                autoWidth: false,
+                stateSave: false
+            });
+            </text>
+        }
+    });
+    </script>
+
+    <style>
+        /* DataTables custom styling */
+        #downloadHistoryTable_wrapper .dataTables_filter {
+            margin-bottom: 1rem;
+        }
+
+        #downloadHistoryTable_wrapper .dataTables_length {
+            margin-bottom: 1rem;
+        }
+
+        #downloadHistoryTable_wrapper .dataTables_info {
+            padding-top: 1rem;
+        }
+
+        #downloadHistoryTable_wrapper .dataTables_paginate {
+            padding-top: 1rem;
+        }
+
+        #downloadHistoryTable tbody td {
+            vertical-align: middle;
+        }
+
+        /* Processing indicator */
+        .dataTables_processing {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 20px;
+        }
+
+        /* Make search input more visible */
+        #downloadHistoryTable_wrapper .dataTables_filter input {
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            padding: 0.375rem 0.75rem;
+        }
+
+        /* Responsive table adjustments */
+        @@media (max-width: 768px) {
+            #downloadHistoryTable_wrapper .dataTables_length,
+            #downloadHistoryTable_wrapper .dataTables_filter {
+                text-align: center;
+                margin-bottom: 0.5rem;
+            }
+        }
+    </style>
 }

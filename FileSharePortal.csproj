@@ -53,6 +53,9 @@
     <Reference Include="EntityFramework.SqlServer, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, processorArchitecture=MSIL">
       <HintPath>packages\EntityFramework.6.4.4\lib\net45\EntityFramework.SqlServer.dll</HintPath>
     </Reference>
+    <Reference Include="log4net, Version=3.2.0.0, Culture=neutral, PublicKeyToken=669e0ddf0bb1aa2a, processorArchitecture=MSIL">
+      <HintPath>packages\log4net.3.2.0\lib\net462\log4net.dll</HintPath>
+    </Reference>
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="Microsoft.Web.Infrastructure, Version=1.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <HintPath>packages\Microsoft.Web.Infrastructure.1.0.0.0\lib\net40\Microsoft.Web.Infrastructure.dll</HintPath>
@@ -138,6 +141,7 @@
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
+    <Compile Include="Helpers\LoggingHelper.cs" />
     <Compile Include="Migrations\202511022125141_InitialCreate.cs" />
     <Compile Include="Migrations\202511022125141_InitialCreate.Designer.cs">
       <DependentUpon>202511022125141_InitialCreate.cs</DependentUpon>
@@ -162,12 +166,17 @@
     <Compile Include="Migrations\202511031200000_AddSourceLocationToErrorLog.Designer.cs">
       <DependentUpon>202511031200000_AddSourceLocationToErrorLog.cs</DependentUpon>
     </Compile>
+    <Compile Include="Migrations\202511110939484_AddFileDownloadTracking.cs" />
+    <Compile Include="Migrations\202511110939484_AddFileDownloadTracking.Designer.cs">
+      <DependentUpon>202511110939484_AddFileDownloadTracking.cs</DependentUpon>
+    </Compile>
     <Compile Include="Migrations\Configuration.cs" />
     <Compile Include="Models\ApiToken.cs" />
     <Compile Include="Models\Application.cs" />
     <Compile Include="Models\ApplicationExecution.cs" />
     <Compile Include="Models\ApplicationLogFile.cs" />
     <Compile Include="Models\DistributionList.cs" />
+    <Compile Include="Models\FileDownloadLog.cs" />
     <Compile Include="Models\FileReport.cs" />
     <Compile Include="Models\FileShare.cs" />
     <Compile Include="Models\Notification.cs" />
@@ -230,9 +239,6 @@
     <Content Include="Web.config" />
     <Content Include="Global.asax" />
     <Content Include="Content\site.css" />
-    <Content Include="API_DOCUMENTATION.md" />
-    <Content Include="API_SETUP.md" />
-    <Content Include="README.md" />
     <Content Include="Views\Account\AccessDenied.cshtml" />
     <Content Include="Views\Account\Login.cshtml" />
     <Content Include="Views\Admin\CreateDistributionList.cshtml" />
@@ -275,6 +281,7 @@
   <ItemGroup>
     <Folder Include="App_Data\" />
     <Folder Include="Images\" />
+    <Folder Include="MD Files\" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Migrations\202511022125141_InitialCreate.resx">
@@ -294,6 +301,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Migrations\202511031200000_AddSourceLocationToErrorLog.resx">
       <DependentUpon>202511031200000_AddSourceLocationToErrorLog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202511110939484_AddFileDownloadTracking.resx">
+      <DependentUpon>202511110939484_AddFileDownloadTracking.cs</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>

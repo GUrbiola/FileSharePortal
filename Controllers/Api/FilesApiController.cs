@@ -1,5 +1,10 @@
+using FileSharePortal.Data;
+using FileSharePortal.Filters;
+using FileSharePortal.Models;
+using FileSharePortal.Services;
 using System;
 using System.Collections.Generic;
+using System.Data.Entity;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -8,10 +13,6 @@ using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using System.Web;
 using System.Web.Http;
-using FileSharePortal.Data;
-using FileSharePortal.Filters;
-using FileSharePortal.Models;
-using FileSharePortal.Services;
 
 namespace FileSharePortal.Controllers.Api
 {
@@ -82,7 +83,50 @@ namespace FileSharePortal.Controllers.Api
                 })
                 .ToList();
 
-            return Ok(files);
+            var sharedFiles = new HashSet<SharedFile>();
+
+            // Get files shared directly with the user
+            var directShares = _context.FileShares
+                .Where(fs => fs.SharedWithUserId == CurrentUser.UserId && !fs.SharedFile.IsDeleted)
+                .Include(fs => fs.SharedFile.UploadedBy)
+                .Select(fs => fs.SharedFile)
+                .ToList();
+
+            foreach (var file in directShares)
+            {
+                sharedFiles.Add(file);
+            }
+
+            // Get files shared through roles (including distribution list memberships)
+            var roleShares = _context.FileShares
+                .Where(fs => fs.SharedWithRoleId.HasValue && !fs.SharedFile.IsDeleted)
+                .Include(fs => fs.SharedFile.UploadedBy)
+                .ToList();
+
+            foreach (var roleShare in roleShares)
+            {
+                var roleUsers = _roleService.GetRoleUsers(roleShare.SharedWithRoleId.Value);
+                if (roleUsers.Any(u => u.UserId == CurrentUser.UserId))
+                {
+                    sharedFiles.Add(roleShare.SharedFile);
+                }
+            }
+
+            var allFiles = sharedFiles
+                .Select(f => new
+                {
+                    fileId = f.FileId,
+                    fileName = f.FileName,
+                    fileSize = f.FileSize,
+                    contentType = f.ContentType,
+                    uploadedDate = f.UploadedDate,
+                    uploadedBy = f.UploadedBy.FullName,
+                    downloadCount = f.DownloadCount,
+                    description = f.Description
+                })
+                .OrderByDescending(f => f.uploadedDate).ToList();
+
+            return Ok(allFiles);
         }
 
         /// <summary>
@@ -180,6 +224,18 @@ namespace FileSharePortal.Controllers.Api
 
             // Increment download count
             file.DownloadCount++;
+
+            // Log the download
+            var downloadLog = new FileDownloadLog
+            {
+                FileId = id,
+                DownloadedByUserId = CurrentUser.UserId,
+                DownloadedDate = DateTime.Now,
+                IpAddress = GetClientIpAddress(),
+                UserAgent = Request.Headers.UserAgent?.ToString()
+            };
+            _context.FileDownloadLogs.Add(downloadLog);
+
             _context.SaveChanges();
 
             var response = new HttpResponseMessage(HttpStatusCode.OK);
@@ -194,11 +250,38 @@ namespace FileSharePortal.Controllers.Api
         }
 
         /// <summary>
+        /// Get the client's IP address, accounting for proxies
+        /// </summary>
+        private string GetClientIpAddress()
+        {
+            if (Request.Headers.Contains("X-Forwarded-For"))
+            {
+                var forwardedFor = Request.Headers.GetValues("X-Forwarded-For").FirstOrDefault();
+                if (!string.IsNullOrEmpty(forwardedFor))
+                {
+                    var addresses = forwardedFor.Split(',');
+                    if (addresses.Length > 0)
+                    {
+                        return addresses[0].Trim();
+                    }
+                }
+            }
+
+            var context = HttpContext.Current;
+            if (context != null && context.Request != null)
+            {
+                return context.Request.UserHostAddress;
+            }
+
+            return "Unknown";
+        }
+
+        /// <summary>
         /// Delete a file
         /// DELETE /api/files/{id}
         /// </summary>
-        [HttpDelete]
-        [Route("{id}")]
+        [HttpGet]
+        [Route("remove/{id}")]
         public IHttpActionResult DeleteFile(int id)
         {
             var file = _context.SharedFiles.Find(id);
@@ -312,6 +395,101 @@ namespace FileSharePortal.Controllers.Api
         }
 
         /// <summary>
+        /// Share a file with users and/or roles
+        /// POST /api/files/{id}/share
+        /// Body: { "userIds": ["dumbo", "gonzalo.urbiola"], "roleIds": ["all"] }
+        /// </summary>
+        [HttpPost]
+        [Route("{id}/sharewithuser")]
+        public IHttpActionResult ShareFileWithUser(int id, [FromBody] ShareFileRequestWithUser request)
+        {
+            var file = _context.SharedFiles.Find(id);
+
+            if (file == null || file.IsDeleted)
+            {
+                return NotFound();
+            }
+
+            // Only owner or admin can share
+            if (file.UploadedByUserId != CurrentUser.UserId && !CurrentUser.IsAdmin)
+            {
+                return Content(HttpStatusCode.Forbidden, new { error = "Access denied" });
+            }
+
+            // Get users with access before changes
+            var usersBeforeUpdate = GetUsersWithAccess(id);
+
+            // Remove existing shares
+            var existingShares = _context.FileShares.Where(fs => fs.FileId == id).ToList();
+            _context.FileShares.RemoveRange(existingShares);
+            _context.SaveChanges();
+
+            // Create new shares
+            if (request.UserIds != null && request.UserIds.Length > 0)
+            {
+                foreach (var userName in request.UserIds)
+                {
+                    var user = _context.Users.Where(u => u.Username == userName).FirstOrDefault();
+
+                    if (user != null)
+                    {
+                        var fileShare = new Models.FileShare
+                        {
+                            FileId = id,
+                            SharedWithUserId = user.UserId,
+                            SharedByUserId = CurrentUser.UserId
+                        };
+                        _context.FileShares.Add(fileShare);
+                    }
+                }
+            }
+
+            if (request.RoleIds != null && request.RoleIds.Length > 0)
+            {
+                foreach (var roleName in request.RoleIds)
+                {
+                    var role = _context.Roles.Where(r => r.RoleName == roleName).FirstOrDefault();
+                    if (role != null)
+                    {
+                        var fileShare = new Models.FileShare
+                        {
+                            FileId = id,
+                            SharedWithRoleId = role.RoleId,
+                            SharedByUserId = CurrentUser.UserId
+                        };
+                        _context.FileShares.Add(fileShare);
+                    }
+                }
+            }
+
+            _context.SaveChanges();
+
+            // Get users with access after changes
+            var usersAfterUpdate = GetUsersWithAccess(id);
+
+            // Calculate differences and send notifications
+            var usersWhoGainedAccess = usersAfterUpdate.Except(usersBeforeUpdate).ToList();
+            var usersWhoLostAccess = usersBeforeUpdate.Except(usersAfterUpdate).ToList();
+
+            if (usersWhoGainedAccess.Any())
+            {
+                _notificationService.NotifyFileShared(id, usersWhoGainedAccess, CurrentUser.UserId);
+            }
+
+            if (usersWhoLostAccess.Any())
+            {
+                _notificationService.NotifyFileAccessRemoved(id, usersWhoLostAccess, CurrentUser.UserId);
+            }
+
+            return Ok(new
+            {
+                message = "File shared successfully",
+                usersGainedAccess = usersWhoGainedAccess.Count,
+                usersLostAccess = usersWhoLostAccess.Count
+            });
+        }
+
+        /// <summary>
         /// Remove access to a file for specific users/roles
         /// POST /api/files/{id}/remove-access
         /// Body: { "userIds": [1, 2], "roleIds": [1] }
@@ -355,6 +533,91 @@ namespace FileSharePortal.Controllers.Api
 
                 // Get users who will lose access through roles
                 foreach (var roleId in request.RoleIds)
+                {
+                    var roleUsers = _roleService.GetRoleUsers(roleId);
+                    usersAffected.AddRange(roleUsers.Select(u => u.UserId));
+                }
+
+                _context.FileShares.RemoveRange(roleShares);
+            }
+
+            _context.SaveChanges();
+
+            // Send notifications
+            if (usersAffected.Any())
+            {
+                _notificationService.NotifyFileAccessRemoved(id, usersAffected.Distinct().ToList(), CurrentUser.UserId);
+            }
+
+            return Ok(new
+            {
+                message = "Access removed successfully",
+                usersAffected = usersAffected.Distinct().Count()
+            });
+        }
+
+        /// <summary>
+        /// Remove access to a file for specific users/roles
+        /// POST /api/files/{id}/remove-access
+        /// Body: { "userIds": ["dumbo", "gonzalo.urbiola"], "roleIds": ["all"] }
+        /// </summary>
+        [HttpPost]
+        [Route("{id}/remove-access-foruser")]
+        public IHttpActionResult RemoveAccessForUser(int id, [FromBody] ShareFileRequestWithUser request)
+        {
+            var file = _context.SharedFiles.Find(id);
+            int[] userIds = new int[] { };
+            int[] roleIds = new int[] { };
+
+            if (request.UserIds != null && request.UserIds.Length > 0)
+            {
+                foreach (var userName in request.UserIds)
+                {
+                    var user = _context.Users.Where(u => u.Username == userName).FirstOrDefault();
+                    if (user != null)
+                        userIds = userIds.Append(user.UserId).ToArray();
+                }
+            }
+
+            if (request.RoleIds != null && request.RoleIds.Length > 0)
+            {
+                foreach (var roleName in request.RoleIds)
+                {
+                    var role = _context.Roles.Where(r => r.RoleName == roleName).FirstOrDefault();
+                    if (role != null)
+                        roleIds = roleIds.Append(role.RoleId).ToArray();
+                }
+            }
+
+            if (file == null || file.IsDeleted)
+                return NotFound();
+
+            // Only owner or admin can modify access
+            if (file.UploadedByUserId != CurrentUser.UserId && !CurrentUser.IsAdmin)
+                return Content(HttpStatusCode.Forbidden, new { error = "Access denied" });
+
+            var usersAffected = new List<int>();
+
+            // Remove user shares
+            if (request.UserIds != null && request.UserIds.Length > 0)
+            {
+                var userShares = _context.FileShares
+                    .Where(fs => fs.FileId == id && userIds.Contains(fs.SharedWithUserId.Value))
+                    .ToList();
+
+                usersAffected.AddRange(userIds);
+                _context.FileShares.RemoveRange(userShares);
+            }
+
+            // Remove role shares
+            if (request.RoleIds != null && request.RoleIds.Length > 0)
+            {
+                var roleShares = _context.FileShares
+                    .Where(fs => fs.FileId == id && roleIds.Contains(fs.SharedWithRoleId.Value))
+                    .ToList();
+
+                // Get users who will lose access through roles
+                foreach (var roleId in roleIds)
                 {
                     var roleUsers = _roleService.GetRoleUsers(roleId);
                     usersAffected.AddRange(roleUsers.Select(u => u.UserId));
@@ -463,5 +726,11 @@ namespace FileSharePortal.Controllers.Api
     {
         public int[] UserIds { get; set; }
         public int[] RoleIds { get; set; }
+    }
+
+    public class ShareFileRequestWithUser
+    {
+        public string[] UserIds { get; set; }
+        public string[] RoleIds { get; set; }
     }
 }
