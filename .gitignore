@@ -361,4 +361,29 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Ignore files related to AI assistants
+
+# Claude Code related files
+.claude/
+.claude-code/
+claude-code.log
+claude_outputs/
+claude_temp/
+*claude-code*
+
+# GitHub Copilot related files
+.github/copilot/
+copilot-chat/
+.copilot/
+*copilot*
+
+# Generic AI assistant outputs
+/ai_outputs/
+*.ai.txt
+*.ai.md
+*.generated.md
+*.llm.txt
+
+# Temporary/misc files
 nul
